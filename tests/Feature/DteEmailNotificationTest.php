@@ -229,6 +229,7 @@ class DteEmailNotificationTest extends TestCase
         $html = (new DteAcceptedMail($message))->render();
 
         $this->assertStringContainsString('Consultar tu DTE', $html);
+        $this->assertStringContainsString('width="190"', $html);
         $this->assertStringContainsString('ambiente=00&amp;codGen=AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA&amp;fechaEmi=2026-06-15', $html);
         $this->assertStringContainsString('https://wa.me/50375640652', $html);
         $this->assertStringContainsString('¿Aún no emites factura electrónica?', $html);

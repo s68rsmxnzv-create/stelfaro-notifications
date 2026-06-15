@@ -27,26 +27,32 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 28px; background: #0b1220; border: 1px solid #1d4ed8; border-radius: 8px;">
                                 <tr>
                                     <td style="padding: 18px 20px;">
-                                        @if(! empty($metadata['numero_control']))
-                                            <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">Número de control</p>
-                                            <p style="margin: 0 0 18px; color: #ffffff; font-size: 15px; line-height: 22px; word-break: break-word;">{{ $metadata['numero_control'] }}</p>
-                                        @endif
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td valign="middle" style="padding: 0 18px 0 0;">
+                                                    @if(! empty($metadata['numero_control']))
+                                                        <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">Número de control</p>
+                                                        <p style="margin: 0 0 18px; color: #ffffff; font-size: 15px; line-height: 22px; word-break: break-word;">{{ $metadata['numero_control'] }}</p>
+                                                    @endif
 
-                                        @if(! empty($metadata['codigo_generacion']))
-                                            <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">Código de generación</p>
-                                            <p style="margin: 0; color: #ffffff; font-size: 15px; line-height: 22px; word-break: break-word;">{{ $metadata['codigo_generacion'] }}</p>
-                                        @endif
+                                                    @if(! empty($metadata['codigo_generacion']))
+                                                        <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">Código de generación</p>
+                                                        <p style="margin: 0; color: #ffffff; font-size: 15px; line-height: 22px; word-break: break-word;">{{ $metadata['codigo_generacion'] }}</p>
+                                                    @endif
+                                                </td>
+
+                                                @if($queryUrl)
+                                                    <td width="190" valign="middle" align="right" style="padding: 0;">
+                                                        <a href="{{ $queryUrl }}" style="display: block; background: #2563eb; border-radius: 8px; color: #ffffff; font-size: 16px; font-weight: 700; line-height: 22px; padding: 22px 18px; text-align: center; text-decoration: none;">
+                                                            Consultar tu DTE
+                                                        </a>
+                                                    </td>
+                                                @endif
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                             </table>
-
-                            @if($queryUrl)
-                                <p style="margin: 0 0 32px;">
-                                    <a href="{{ $queryUrl }}" style="display: inline-block; background: #2563eb; border-radius: 8px; color: #ffffff; font-size: 16px; font-weight: 700; line-height: 20px; padding: 14px 22px; text-decoration: none;">
-                                        Consultar tu DTE
-                                    </a>
-                                </p>
-                            @endif
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 26px; border-top: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
                                 <tr>
