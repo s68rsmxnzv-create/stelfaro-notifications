@@ -17,7 +17,6 @@ class NotificationSenderAliasTest extends TestCase
         $response = $this
             ->withToken('secret')
             ->postJson('/api/v1/sender-aliases', [
-                'scope_type' => 'global',
                 'purpose' => 'dte_delivery',
                 'from_email' => 'stelfaro.dte@stelfaro.com',
                 'from_name' => 'Stelfaro DTE',
@@ -53,7 +52,6 @@ class NotificationSenderAliasTest extends TestCase
         $this
             ->withToken('secret')
             ->postJson('/api/v1/sender-aliases', [
-                'scope_type' => 'global',
                 'purpose' => 'registration',
                 'from_email' => 'bienvenida@stelfaro.com',
                 'from_name' => 'Registro Stelfaro',
@@ -87,7 +85,7 @@ class NotificationSenderAliasTest extends TestCase
             ->assertJsonPath('data.0.from_email', 'stelfaro.dte@stelfaro.com');
     }
 
-    public function test_empresa_sender_alias_requires_scope_id(): void
+    public function test_sender_aliases_are_always_global_even_if_scope_is_sent(): void
     {
         config(['notifications.api_token' => 'secret']);
 
@@ -95,10 +93,19 @@ class NotificationSenderAliasTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/sender-aliases', [
                 'scope_type' => 'empresa',
+                'scope_id' => 77,
                 'purpose' => 'dte_delivery',
                 'from_email' => 'facturacion@empresa.test',
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('scope_id');
+            ->assertCreated()
+            ->assertJsonPath('data.scope_type', 'global')
+            ->assertJsonPath('data.scope_id', 0)
+            ->assertJsonPath('data.from_email', 'facturacion@empresa.test');
+
+        $this->assertDatabaseHas('notification_sender_aliases', [
+            'scope_type' => 'global',
+            'scope_id' => 0,
+            'purpose' => 'dte_delivery',
+        ]);
     }
 }

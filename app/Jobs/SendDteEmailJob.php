@@ -79,7 +79,7 @@ class SendDteEmailJob implements ShouldQueue
             return;
         }
 
-        $alias = $aliases->resolve($message->purpose ?: 'dte_delivery', $message->empresa_id);
+        $alias = $aliases->resolve($message->purpose ?: 'dte_delivery');
 
         if (! $alias) {
             return;

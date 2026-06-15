@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\NotificationSenderAlias;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class NotificationSenderAliasController extends Controller
 {
@@ -38,11 +36,12 @@ class NotificationSenderAliasController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $this->validated($request);
-        $validated['scope_id'] = $this->scopeId($validated);
+        $validated['scope_type'] = 'global';
+        $validated['scope_id'] = 0;
 
         $alias = NotificationSenderAlias::query()->updateOrCreate([
-            'scope_type' => $validated['scope_type'],
-            'scope_id' => $validated['scope_id'],
+            'scope_type' => 'global',
+            'scope_id' => 0,
             'purpose' => $validated['purpose'],
         ], $validated);
 
@@ -54,13 +53,7 @@ class NotificationSenderAliasController extends Controller
     public function update(NotificationSenderAlias $alias, Request $request): JsonResponse
     {
         $validated = $this->validated($request, partial: true);
-
-        if (isset($validated['scope_type']) || array_key_exists('scope_id', $validated)) {
-            $validated['scope_id'] = $this->scopeId([
-                'scope_type' => $validated['scope_type'] ?? $alias->scope_type,
-                'scope_id' => $validated['scope_id'] ?? $alias->scope_id,
-            ]);
-        }
+        unset($validated['scope_type'], $validated['scope_id']);
 
         $alias->update($validated);
 
@@ -77,8 +70,6 @@ class NotificationSenderAliasController extends Controller
         $required = $partial ? 'sometimes' : 'required';
 
         return $request->validate([
-            'scope_type' => [$required, Rule::in(['global', 'empresa'])],
-            'scope_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'purpose' => [$required, 'string', 'max:80', 'regex:/^[a-z0-9_\\.\\-]+$/'],
             'from_email' => [$required, 'email:rfc', 'max:255'],
             'from_name' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -87,24 +78,6 @@ class NotificationSenderAliasController extends Controller
             'is_active' => ['sometimes', 'boolean'],
             'metadata' => ['sometimes', 'array'],
         ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function scopeId(array $data): int
-    {
-        if (($data['scope_type'] ?? null) === 'global') {
-            return 0;
-        }
-
-        if (empty($data['scope_id'])) {
-            throw ValidationException::withMessages([
-                'scope_id' => 'El scope_id es requerido para alias por empresa.',
-            ]);
-        }
-
-        return (int) $data['scope_id'];
     }
 
     /**
