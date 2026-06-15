@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\DteAcceptedMail;
 use App\Models\NotificationMessage;
+use App\Services\SenderAliasResolver;
 use App\Support\Core\CoreApiClient;
 use App\Support\Core\CoreArtifact;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,7 +26,7 @@ class SendDteEmailJob implements ShouldQueue
 
     public function __construct(public readonly int $messageId) {}
 
-    public function handle(CoreApiClient $core): void
+    public function handle(CoreApiClient $core, SenderAliasResolver $aliases): void
     {
         $message = NotificationMessage::query()->findOrFail($this->messageId);
 
@@ -41,6 +42,8 @@ class SendDteEmailJob implements ShouldQueue
         $message->recordEvent('processing', ['attempt' => $message->attempts]);
 
         try {
+            $this->resolveSenderAlias($message, $aliases);
+
             $pdf = $core->dtePdf($message->source_id);
             $json = $core->dteClientJson($message->source_id);
 
@@ -68,6 +71,27 @@ class SendDteEmailJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    private function resolveSenderAlias(NotificationMessage $message, SenderAliasResolver $aliases): void
+    {
+        if ($message->from_email) {
+            return;
+        }
+
+        $alias = $aliases->resolve($message->purpose ?: 'dte_delivery', $message->empresa_id);
+
+        if (! $alias) {
+            return;
+        }
+
+        $message->forceFill([
+            'notification_sender_alias_id' => $alias->id,
+            'from_email' => $alias->from_email,
+            'from_name' => $alias->from_name,
+            'reply_to_email' => $alias->reply_to_email,
+            'reply_to_name' => $alias->reply_to_name,
+        ])->save();
     }
 
     private function storeAttachment(NotificationMessage $message, string $type, CoreArtifact $artifact): void

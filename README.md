@@ -35,6 +35,40 @@ El job descarga desde `dte-core`:
 
 Luego guarda adjuntos, envia el correo y registra eventos `queued`, `processing`, `sent` o `failed`.
 
+## Alias de remitente
+
+Los remitentes por actividad se guardan en base de datos para que la UI administrativa pueda cambiarlos sin tocar `.env`.
+
+```http
+POST /api/v1/sender-aliases
+Authorization: Bearer {NOTIFICATIONS_API_TOKEN}
+Content-Type: application/json
+```
+
+```json
+{
+  "scope_type": "global",
+  "purpose": "dte_delivery",
+  "from_email": "stelfaro.dte@stelfaro.com",
+  "from_name": "Stelfaro DTE",
+  "reply_to_email": "soporte@stelfaro.com"
+}
+```
+
+El scope global usa `scope_id = 0`. Para sobrescribir por empresa:
+
+```json
+{
+  "scope_type": "empresa",
+  "scope_id": 1,
+  "purpose": "dte_delivery",
+  "from_email": "facturacion@empresa.test",
+  "from_name": "Facturacion Empresa"
+}
+```
+
+El envio de DTE usa `purpose = dte_delivery` por defecto.
+
 ## Variables
 
 ```dotenv

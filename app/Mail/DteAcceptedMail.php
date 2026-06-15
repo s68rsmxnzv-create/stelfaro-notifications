@@ -6,6 +6,7 @@ use App\Models\NotificationAttachment;
 use App\Models\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -20,6 +21,8 @@ class DteAcceptedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: $this->fromAddress(),
+            replyTo: $this->replyToAddress(),
             subject: $this->message->subject ?: $this->defaultSubject(),
         );
     }
@@ -56,5 +59,22 @@ class DteAcceptedMail extends Mailable
         return $numeroControl
             ? "Documento tributario electronico {$numeroControl}"
             : 'Documento tributario electronico';
+    }
+
+    private function fromAddress(): ?Address
+    {
+        return $this->message->from_email
+            ? new Address($this->message->from_email, $this->message->from_name ?: null)
+            : null;
+    }
+
+    /**
+     * @return array<int, Address>
+     */
+    private function replyToAddress(): array
+    {
+        return $this->message->reply_to_email
+            ? [new Address($this->message->reply_to_email, $this->message->reply_to_name ?: null)]
+            : [];
     }
 }

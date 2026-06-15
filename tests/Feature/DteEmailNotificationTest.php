@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Jobs\SendDteEmailJob;
 use App\Mail\DteAcceptedMail;
 use App\Models\NotificationMessage;
+use App\Models\NotificationSenderAlias;
+use App\Services\SenderAliasResolver;
 use App\Support\Core\CoreApiClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -82,13 +84,14 @@ class DteEmailNotificationTest extends TestCase
             'recipient_email' => 'cliente@example.test',
             'recipient_name' => 'Cliente Demo',
             'status' => 'pending',
+            'purpose' => 'dte_delivery',
             'metadata' => [
                 'numero_control' => 'DTE-01-M001P001-000000000000135',
                 'codigo_generacion' => 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
             ],
         ]);
 
-        (new SendDteEmailJob($message->id))->handle(app(CoreApiClient::class));
+        (new SendDteEmailJob($message->id))->handle(app(CoreApiClient::class), app(SenderAliasResolver::class));
 
         $message->refresh();
 
@@ -116,6 +119,64 @@ class DteEmailNotificationTest extends TestCase
         Mail::assertSent(DteAcceptedMail::class, fn (DteAcceptedMail $mail): bool => $mail->message->id === $message->id);
         Http::assertSentCount(2);
         Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer core-token'));
+    }
+
+    public function test_send_dte_email_job_uses_configured_sender_alias(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        config([
+            'notifications.core.base_url' => 'https://core.example.test/api/v1',
+            'notifications.attachments.disk' => 'local',
+            'notifications.attachments.path' => 'notifications',
+        ]);
+
+        Http::fake([
+            'https://core.example.test/api/v1/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="dte-demo.pdf"',
+            ]),
+            'https://core.example.test/api/v1/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
+                'Content-Type' => 'application/json',
+                'Content-Disposition' => 'attachment; filename="dte-demo.json"',
+            ]),
+        ]);
+
+        NotificationSenderAlias::query()->create([
+            'scope_type' => 'global',
+            'scope_id' => 0,
+            'purpose' => 'dte_delivery',
+            'from_email' => 'stelfaro.dte@stelfaro.com',
+            'from_name' => 'Stelfaro DTE',
+            'reply_to_email' => 'soporte@stelfaro.com',
+            'reply_to_name' => 'Soporte Stelfaro',
+        ]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'dte',
+            'source_id' => 135,
+            'empresa_id' => 1,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'status' => 'pending',
+            'purpose' => 'dte_delivery',
+        ]);
+
+        (new SendDteEmailJob($message->id))->handle(app(CoreApiClient::class), app(SenderAliasResolver::class));
+
+        $message->refresh();
+
+        $this->assertSame('stelfaro.dte@stelfaro.com', $message->from_email);
+        $this->assertSame('Stelfaro DTE', $message->from_name);
+        $this->assertSame('soporte@stelfaro.com', $message->reply_to_email);
+
+        Mail::assertSent(DteAcceptedMail::class, function (DteAcceptedMail $mail): bool {
+            $envelope = $mail->envelope();
+
+            return $envelope->from?->address === 'stelfaro.dte@stelfaro.com'
+                && $envelope->from?->name === 'Stelfaro DTE'
+                && $envelope->replyTo[0]->address === 'soporte@stelfaro.com';
+        });
     }
 
     public function test_internal_token_is_required(): void

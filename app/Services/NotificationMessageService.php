@@ -23,6 +23,7 @@ class NotificationMessageService
                 'recipient_email' => $recipient['email'],
                 'recipient_name' => $recipient['name'] ?? null,
                 'subject' => $data['subject'] ?? null,
+                'purpose' => $data['purpose'] ?? 'dte_delivery',
                 'status' => 'pending',
                 'metadata' => [
                     'tipo_dte' => $data['tipo_dte'] ?? null,
