@@ -22,6 +22,8 @@ class DteEmailNotificationController extends Controller
             'tipo_dte' => ['sometimes', 'nullable', 'string', 'max:8'],
             'numero_control' => ['sometimes', 'nullable', 'string', 'max:80'],
             'codigo_generacion' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'empresa_nombre' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'empresa_nombre_comercial' => ['sometimes', 'nullable', 'string', 'max:255'],
             'requested_by' => ['sometimes', 'nullable', 'string', 'max:120'],
             'metadata' => ['sometimes', 'array'],
         ]);

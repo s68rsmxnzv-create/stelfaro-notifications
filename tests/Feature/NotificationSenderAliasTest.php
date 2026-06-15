@@ -19,9 +19,6 @@ class NotificationSenderAliasTest extends TestCase
             ->postJson('/api/v1/sender-aliases', [
                 'purpose' => 'dte_delivery',
                 'from_email' => 'stelfaro.dte@stelfaro.com',
-                'from_name' => 'Stelfaro DTE',
-                'reply_to_email' => 'soporte@stelfaro.com',
-                'reply_to_name' => 'Soporte Stelfaro',
             ]);
 
         $response->assertCreated()
@@ -54,7 +51,6 @@ class NotificationSenderAliasTest extends TestCase
             ->postJson('/api/v1/sender-aliases', [
                 'purpose' => 'registration',
                 'from_email' => 'bienvenida@stelfaro.com',
-                'from_name' => 'Registro Stelfaro',
             ])
             ->assertCreated()
             ->assertJsonPath('data.from_email', 'bienvenida@stelfaro.com');

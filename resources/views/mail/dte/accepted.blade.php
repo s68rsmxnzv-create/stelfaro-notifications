@@ -5,6 +5,8 @@ Hola {{ $message->recipient_name ?: 'cliente' }},
 
 Adjuntamos el comprobante emitido y su JSON fiscal firmado.
 
+Este correo fue generado automaticamente. Por favor no respondas a este mensaje.
+
 @if(! empty($metadata['numero_control']))
 **Numero de control:** {{ $metadata['numero_control'] }}
 @endif

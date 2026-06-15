@@ -165,6 +165,9 @@ class DteEmailNotificationTest extends TestCase
             'recipient_name' => 'Cliente Demo',
             'status' => 'pending',
             'purpose' => 'dte_delivery',
+            'metadata' => [
+                'empresa_nombre_comercial' => 'Vidrieria El Faro',
+            ],
         ]);
 
         (new SendDteEmailJob($message->id))->handle(
@@ -176,15 +179,15 @@ class DteEmailNotificationTest extends TestCase
         $message->refresh();
 
         $this->assertSame('stelfaro.dte@stelfaro.com', $message->from_email);
-        $this->assertSame('Stelfaro DTE', $message->from_name);
-        $this->assertSame('soporte@stelfaro.com', $message->reply_to_email);
+        $this->assertSame('Vidrieria El Faro', $message->from_name);
+        $this->assertNull($message->reply_to_email);
 
         Mail::assertSent(DteAcceptedMail::class, function (DteAcceptedMail $mail): bool {
             $envelope = $mail->envelope();
 
             return $envelope->from?->address === 'stelfaro.dte@stelfaro.com'
-                && $envelope->from?->name === 'Stelfaro DTE'
-                && $envelope->replyTo[0]->address === 'soporte@stelfaro.com';
+                && $envelope->from?->name === 'Vidrieria El Faro'
+                && $envelope->replyTo === [];
         });
     }
 

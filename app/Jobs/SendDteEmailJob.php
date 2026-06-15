@@ -90,10 +90,25 @@ class SendDteEmailJob implements ShouldQueue
         $message->forceFill([
             'notification_sender_alias_id' => $alias->id,
             'from_email' => $alias->from_email,
-            'from_name' => $alias->from_name,
-            'reply_to_email' => $alias->reply_to_email,
-            'reply_to_name' => $alias->reply_to_name,
+            'from_name' => $this->senderName($message),
+            'reply_to_email' => null,
+            'reply_to_name' => null,
         ])->save();
+    }
+
+    private function senderName(NotificationMessage $message): string
+    {
+        $metadata = $message->metadata ?? [];
+        $context = is_array($metadata['context'] ?? null) ? $metadata['context'] : [];
+
+        return (string) (
+            $metadata['empresa_nombre_comercial']
+            ?? $metadata['empresa_nombre']
+            ?? data_get($context, 'empresa.nombre_comercial')
+            ?? data_get($context, 'empresa.razon_social')
+            ?? data_get($context, 'empresa.nombre')
+            ?? config('mail.from.name', 'StelFaro')
+        );
     }
 
     private function storeAttachment(NotificationMessage $message, string $type, CoreArtifact $artifact): void

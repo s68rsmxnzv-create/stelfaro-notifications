@@ -29,6 +29,8 @@ class NotificationMessageService
                     'tipo_dte' => $data['tipo_dte'] ?? null,
                     'numero_control' => $data['numero_control'] ?? null,
                     'codigo_generacion' => $data['codigo_generacion'] ?? null,
+                    'empresa_nombre' => $data['empresa_nombre'] ?? null,
+                    'empresa_nombre_comercial' => $data['empresa_nombre_comercial'] ?? null,
                     'requested_by' => $data['requested_by'] ?? null,
                     'context' => $data['metadata'] ?? [],
                 ],
