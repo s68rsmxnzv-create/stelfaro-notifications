@@ -6,6 +6,7 @@ use App\Jobs\SendDteEmailJob;
 use App\Mail\DteAcceptedMail;
 use App\Models\NotificationMessage;
 use App\Models\NotificationSenderAlias;
+use App\Services\MailTransportConfigurator;
 use App\Services\SenderAliasResolver;
 use App\Support\Core\CoreApiClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -91,7 +92,11 @@ class DteEmailNotificationTest extends TestCase
             ],
         ]);
 
-        (new SendDteEmailJob($message->id))->handle(app(CoreApiClient::class), app(SenderAliasResolver::class));
+        (new SendDteEmailJob($message->id))->handle(
+            app(CoreApiClient::class),
+            app(SenderAliasResolver::class),
+            app(MailTransportConfigurator::class),
+        );
 
         $message->refresh();
 
@@ -162,7 +167,11 @@ class DteEmailNotificationTest extends TestCase
             'purpose' => 'dte_delivery',
         ]);
 
-        (new SendDteEmailJob($message->id))->handle(app(CoreApiClient::class), app(SenderAliasResolver::class));
+        (new SendDteEmailJob($message->id))->handle(
+            app(CoreApiClient::class),
+            app(SenderAliasResolver::class),
+            app(MailTransportConfigurator::class),
+        );
 
         $message->refresh();
 

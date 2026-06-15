@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\DteAcceptedMail;
 use App\Models\NotificationMessage;
+use App\Services\MailTransportConfigurator;
 use App\Services\SenderAliasResolver;
 use App\Support\Core\CoreApiClient;
 use App\Support\Core\CoreArtifact;
@@ -26,7 +27,7 @@ class SendDteEmailJob implements ShouldQueue
 
     public function __construct(public readonly int $messageId) {}
 
-    public function handle(CoreApiClient $core, SenderAliasResolver $aliases): void
+    public function handle(CoreApiClient $core, SenderAliasResolver $aliases, MailTransportConfigurator $mailTransport): void
     {
         $message = NotificationMessage::query()->findOrFail($this->messageId);
 
@@ -42,6 +43,7 @@ class SendDteEmailJob implements ShouldQueue
         $message->recordEvent('processing', ['attempt' => $message->attempts]);
 
         try {
+            $activeTransport = $mailTransport->applyActiveTransport();
             $this->resolveSenderAlias($message, $aliases);
 
             $pdf = $core->dtePdf($message->source_id);
@@ -55,7 +57,7 @@ class SendDteEmailJob implements ShouldQueue
 
             $message->forceFill([
                 'status' => 'sent',
-                'provider' => (string) config('services.notifications.default_provider', config('mail.default')),
+                'provider' => $activeTransport?->name ?? (string) config('services.notifications.default_provider', config('mail.default')),
                 'sent_at' => now(),
             ])->save();
             $message->recordEvent('sent', ['attempt' => $message->attempts]);
