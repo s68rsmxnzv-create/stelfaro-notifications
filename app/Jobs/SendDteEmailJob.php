@@ -54,7 +54,7 @@ class SendDteEmailJob implements ShouldQueue
             $timings['resolve_alias_ms'] = $this->durationMs($stageStartedAt);
 
             $stageStartedAt = microtime(true);
-            $pdf = $core->dtePdf($message->source_id);
+            $pdf = $this->pdfArtifact($core, $message);
             $timings['fetch_pdf_ms'] = $this->durationMs($stageStartedAt);
             $message->recordEvent('artifact_fetched', [
                 'type' => 'pdf',
@@ -64,7 +64,7 @@ class SendDteEmailJob implements ShouldQueue
             ]);
 
             $stageStartedAt = microtime(true);
-            $json = $core->dteClientJson($message->source_id);
+            $json = $this->jsonArtifact($core, $message);
             $timings['fetch_json_ms'] = $this->durationMs($stageStartedAt);
             $message->recordEvent('artifact_fetched', [
                 'type' => 'json',
@@ -140,6 +140,20 @@ class SendDteEmailJob implements ShouldQueue
             'reply_to_email' => null,
             'reply_to_name' => null,
         ])->save();
+    }
+
+    private function pdfArtifact(CoreApiClient $core, NotificationMessage $message): CoreArtifact
+    {
+        return $message->source_type === 'mh_fiscal_event'
+            ? $core->mhFiscalEventPdf($message->source_id)
+            : $core->dtePdf($message->source_id);
+    }
+
+    private function jsonArtifact(CoreApiClient $core, NotificationMessage $message): CoreArtifact
+    {
+        return $message->source_type === 'mh_fiscal_event'
+            ? $core->mhFiscalEventClientJson($message->source_id)
+            : $core->dteClientJson($message->source_id);
     }
 
     private function senderName(NotificationMessage $message): string

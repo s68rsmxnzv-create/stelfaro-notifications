@@ -13,12 +13,28 @@ class NotificationMessageService
      */
     public function queueDteEmail(int $documentId, array $data): NotificationMessage
     {
+        return $this->queueEmail('dte', $documentId, $data, 'document_id');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function queueMhFiscalEventEmail(int $eventId, array $data): NotificationMessage
+    {
+        return $this->queueEmail('mh_fiscal_event', $eventId, $data, 'event_id');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function queueEmail(string $sourceType, int $sourceId, array $data, string $eventContextKey): NotificationMessage
+    {
         $recipient = $data['recipient'];
 
-        $message = DB::transaction(function () use ($documentId, $data, $recipient): NotificationMessage {
+        $message = DB::transaction(function () use ($sourceType, $sourceId, $data, $recipient, $eventContextKey): NotificationMessage {
             $message = NotificationMessage::query()->create([
-                'source_type' => 'dte',
-                'source_id' => $documentId,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
                 'empresa_id' => $data['empresa_id'] ?? null,
                 'recipient_email' => $recipient['email'],
                 'recipient_name' => $recipient['name'] ?? null,
@@ -27,6 +43,7 @@ class NotificationMessageService
                 'status' => 'pending',
                 'metadata' => [
                     'tipo_dte' => $data['tipo_dte'] ?? null,
+                    'event_type' => $data['event_type'] ?? null,
                     'numero_control' => $data['numero_control'] ?? null,
                     'codigo_generacion' => $data['codigo_generacion'] ?? null,
                     'empresa_nombre' => $data['empresa_nombre'] ?? null,
@@ -38,7 +55,7 @@ class NotificationMessageService
 
             $message->recordEvent('queued', [
                 'source' => 'api',
-                'document_id' => $documentId,
+                $eventContextKey => $sourceId,
             ]);
 
             return $message;

@@ -96,6 +96,11 @@ class DteAcceptedMail extends Mailable
         }
 
         $context = Arr::wrap($metadata['context'] ?? []);
+
+        if (($context['query_enabled'] ?? true) === false) {
+            return null;
+        }
+
         $ambiente = $context['ambiente'] ?? null;
         $fechaEmision = $context['fecha_emi'] ?? $context['fec_emi'] ?? null;
         $publicQueryUrl = rtrim((string) config('notifications.dte.public_query_url', 'https://admin.factura.gob.sv/consultaPublica'), '?');

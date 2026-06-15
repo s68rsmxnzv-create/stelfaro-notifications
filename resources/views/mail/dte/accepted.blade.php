@@ -6,6 +6,17 @@
     <title>Documento tributario electrónico</title>
 </head>
 <body style="margin: 0; padding: 0; background: #0f172a; color: #e5efff; font-family: Arial, Helvetica, sans-serif;">
+    @php
+        $isInvalidation = data_get($metadata, 'context.notification_type') === 'invalidation';
+        $title = $isInvalidation ? 'Invalidación de documento tributario electrónico' : 'Documento tributario electrónico';
+        $intro = $isInvalidation
+            ? 'Se ha registrado correctamente la invalidación de un documento tributario electrónico ante el Ministerio de Hacienda.'
+            : 'Tu documento tributario electrónico fue emitido y recibido correctamente por el Ministerio de Hacienda.';
+        $details = $isInvalidation
+            ? 'Adjuntamos el PDF y el JSON fiscal del evento de invalidación para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.'
+            : 'Adjuntamos el PDF y el JSON fiscal para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.';
+    @endphp
+
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #0f172a; margin: 0; padding: 0;">
         <tr>
             <td align="center" style="padding: 32px 16px;">
@@ -17,11 +28,11 @@
                             </p>
 
                             <p style="margin: 0 0 18px; color: #dbeafe; font-size: 17px; line-height: 29px;">
-                                Tu documento tributario electrónico fue emitido y recibido correctamente por el Ministerio de Hacienda.
+                                {{ $intro }}
                             </p>
 
                             <p style="margin: 0 0 26px; color: #bfdbfe; font-size: 16px; line-height: 27px;">
-                                Adjuntamos el PDF y el JSON fiscal para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.
+                                {{ $details }}
                             </p>
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 28px; background: #0b1220; border: 1px solid #1d4ed8; border-radius: 8px;">
@@ -31,7 +42,7 @@
                                             <tr>
                                                 <td valign="middle" style="padding: 0 18px 0 0;">
                                                     @if(! empty($metadata['numero_control']))
-                                                        <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">Número de control</p>
+                                                        <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">{{ $isInvalidation ? 'Evento de invalidación' : 'Número de control' }}</p>
                                                         <p style="margin: 0 0 18px; color: #ffffff; font-size: 15px; line-height: 22px; word-break: break-word;">{{ $metadata['numero_control'] }}</p>
                                                     @endif
 

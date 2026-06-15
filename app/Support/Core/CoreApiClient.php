@@ -19,6 +19,16 @@ class CoreApiClient
         return $this->artifact("internal/dte/drafts/{$documentId}/artifacts/client-json", "dte-{$documentId}.json");
     }
 
+    public function mhFiscalEventPdf(int $eventId): CoreArtifact
+    {
+        return $this->artifact("internal/mh/events/{$eventId}/artifacts/pdf", "mh-event-{$eventId}.pdf");
+    }
+
+    public function mhFiscalEventClientJson(int $eventId): CoreArtifact
+    {
+        return $this->artifact("internal/mh/events/{$eventId}/artifacts/client-json", "mh-event-{$eventId}.json");
+    }
+
     private function artifact(string $path, string $fallbackFilename): CoreArtifact
     {
         $url = $this->url($path);

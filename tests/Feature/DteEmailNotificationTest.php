@@ -137,6 +137,79 @@ class DteEmailNotificationTest extends TestCase
         Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer core-token'));
     }
 
+    public function test_send_mh_fiscal_event_email_job_fetches_event_artifacts_and_sends_mail(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        config([
+            'notifications.api_token' => 'secret',
+            'notifications.core.base_url' => 'https://core.example.test/api/v1',
+            'notifications.core.token' => 'core-token',
+            'notifications.attachments.disk' => 'local',
+            'notifications.attachments.path' => 'notifications',
+            'services.notifications.default_provider' => 'array',
+        ]);
+
+        Http::fake([
+            'https://core.example.test/api/v1/internal/mh/events/22/artifacts/pdf' => Http::response('%PDF-event', 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="mh-event-invalidacion-BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB.pdf"',
+            ]),
+            'https://core.example.test/api/v1/internal/mh/events/22/artifacts/client-json' => Http::response('{"identificacion":[]}', 200, [
+                'Content-Type' => 'application/json',
+                'Content-Disposition' => 'attachment; filename="mh-event-invalidacion-BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB.json"',
+            ]),
+        ]);
+
+        $response = $this
+            ->withToken('secret')
+            ->postJson('/api/v1/mh-events/22/email', [
+                'empresa_id' => 1,
+                'recipient' => [
+                    'name' => 'Cliente Original',
+                    'email' => 'cliente@example.test',
+                ],
+                'subject' => 'Invalidacion de comprobante electronico',
+                'purpose' => 'dte_delivery',
+                'event_type' => 'invalidacion',
+                'numero_control' => 'EVT-INVALIDACION-001',
+                'codigo_generacion' => 'BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB',
+                'metadata' => [
+                    'notification_type' => 'invalidation',
+                    'query_enabled' => false,
+                ],
+            ]);
+
+        $response->assertAccepted()
+            ->assertJsonPath('data.source_type', 'mh_fiscal_event')
+            ->assertJsonPath('data.source_id', 22);
+
+        $message = NotificationMessage::query()->firstOrFail();
+
+        (new SendDteEmailJob($message->id))->handle(
+            app(CoreApiClient::class),
+            app(SenderAliasResolver::class),
+            app(MailTransportConfigurator::class),
+        );
+
+        $message->refresh();
+
+        $this->assertSame('sent', $message->status);
+        $this->assertSame('invalidation', $message->metadata['context']['notification_type']);
+        $this->assertDatabaseHas('notification_attachments', [
+            'notification_message_id' => $message->id,
+            'type' => 'pdf',
+            'filename' => 'mh-event-invalidacion-BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB.pdf',
+        ]);
+        $this->assertDatabaseHas('notification_attachments', [
+            'notification_message_id' => $message->id,
+            'type' => 'json',
+            'filename' => 'mh-event-invalidacion-BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB.json',
+        ]);
+        Mail::assertSent(DteAcceptedMail::class, fn (DteAcceptedMail $mail): bool => $mail->message->id === $message->id);
+        Http::assertSentCount(2);
+    }
+
     public function test_send_dte_email_job_uses_configured_sender_alias(): void
     {
         Mail::fake();
@@ -237,6 +310,32 @@ class DteEmailNotificationTest extends TestCase
         $this->assertStringContainsString('¿Aún no emites factura electrónica?', $html);
         $this->assertStringNotContainsString('Stelfaro Notifications', $html);
         $this->assertStringNotContainsString('http://localhost', $html);
+    }
+
+    public function test_dte_email_template_adapts_to_invalidation_notice(): void
+    {
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'mh_fiscal_event',
+            'source_id' => 22,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'status' => 'pending',
+            'purpose' => 'dte_delivery',
+            'metadata' => [
+                'numero_control' => 'EVT-INVALIDACION-001',
+                'codigo_generacion' => 'BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB',
+                'context' => [
+                    'notification_type' => 'invalidation',
+                    'query_enabled' => false,
+                ],
+            ],
+        ]);
+
+        $html = (new DteAcceptedMail($message))->render();
+
+        $this->assertStringContainsString('invalidación de un documento tributario electrónico', $html);
+        $this->assertStringContainsString('Evento de invalidación', $html);
+        $this->assertStringNotContainsString('Consultar tu DTE', $html);
     }
 
     public function test_internal_token_is_required(): void
