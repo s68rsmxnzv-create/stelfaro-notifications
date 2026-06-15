@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Services;
+
+use App\Jobs\SendDteEmailJob;
+use App\Models\NotificationMessage;
+use Illuminate\Support\Facades\DB;
+
+class NotificationMessageService
+{
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function queueDteEmail(int $documentId, array $data): NotificationMessage
+    {
+        $recipient = $data['recipient'];
+
+        $message = DB::transaction(function () use ($documentId, $data, $recipient): NotificationMessage {
+            $message = NotificationMessage::query()->create([
+                'source_type' => 'dte',
+                'source_id' => $documentId,
+                'empresa_id' => $data['empresa_id'] ?? null,
+                'recipient_email' => $recipient['email'],
+                'recipient_name' => $recipient['name'] ?? null,
+                'subject' => $data['subject'] ?? null,
+                'status' => 'pending',
+                'metadata' => [
+                    'tipo_dte' => $data['tipo_dte'] ?? null,
+                    'numero_control' => $data['numero_control'] ?? null,
+                    'codigo_generacion' => $data['codigo_generacion'] ?? null,
+                    'requested_by' => $data['requested_by'] ?? null,
+                    'context' => $data['metadata'] ?? [],
+                ],
+            ]);
+
+            $message->recordEvent('queued', [
+                'source' => 'api',
+                'document_id' => $documentId,
+            ]);
+
+            return $message;
+        });
+
+        SendDteEmailJob::dispatch($message->id);
+
+        return $message;
+    }
+}
