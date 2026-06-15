@@ -29,6 +29,8 @@ class SendDteEmailJob implements ShouldQueue
 
     public function handle(CoreApiClient $core, SenderAliasResolver $aliases, MailTransportConfigurator $mailTransport): void
     {
+        $jobStartedAt = microtime(true);
+        $timings = [];
         $message = NotificationMessage::query()->findOrFail($this->messageId);
 
         if ($message->status === 'sent') {
@@ -43,32 +45,76 @@ class SendDteEmailJob implements ShouldQueue
         $message->recordEvent('processing', ['attempt' => $message->attempts]);
 
         try {
+            $stageStartedAt = microtime(true);
             $activeTransport = $mailTransport->applyActiveTransport();
+            $timings['apply_transport_ms'] = $this->durationMs($stageStartedAt);
+
+            $stageStartedAt = microtime(true);
             $this->resolveSenderAlias($message, $aliases);
+            $timings['resolve_alias_ms'] = $this->durationMs($stageStartedAt);
 
+            $stageStartedAt = microtime(true);
             $pdf = $core->dtePdf($message->source_id);
+            $timings['fetch_pdf_ms'] = $this->durationMs($stageStartedAt);
+            $message->recordEvent('artifact_fetched', [
+                'type' => 'pdf',
+                'filename' => $pdf->filename,
+                'bytes' => strlen($pdf->content),
+                'duration_ms' => $timings['fetch_pdf_ms'],
+            ]);
+
+            $stageStartedAt = microtime(true);
             $json = $core->dteClientJson($message->source_id);
+            $timings['fetch_json_ms'] = $this->durationMs($stageStartedAt);
+            $message->recordEvent('artifact_fetched', [
+                'type' => 'json',
+                'filename' => $json->filename,
+                'bytes' => strlen($json->content),
+                'duration_ms' => $timings['fetch_json_ms'],
+            ]);
 
+            $stageStartedAt = microtime(true);
             $this->storeAttachment($message, 'pdf', $pdf);
-            $this->storeAttachment($message, 'json', $json);
+            $timings['store_pdf_ms'] = $this->durationMs($stageStartedAt);
 
+            $stageStartedAt = microtime(true);
+            $this->storeAttachment($message, 'json', $json);
+            $timings['store_json_ms'] = $this->durationMs($stageStartedAt);
+
+            $stageStartedAt = microtime(true);
             Mail::to($message->recipient_email, $message->recipient_name)
                 ->send(new DteAcceptedMail($message->fresh('attachments')));
+            $timings['smtp_send_ms'] = $this->durationMs($stageStartedAt);
+            $message->recordEvent('smtp_sent', [
+                'duration_ms' => $timings['smtp_send_ms'],
+            ]);
 
             $message->forceFill([
                 'status' => 'sent',
                 'provider' => $activeTransport?->name ?? (string) config('services.notifications.default_provider', config('mail.default')),
+                'metadata' => $this->mergeMetadata($message->metadata ?? [], [
+                    'timing' => $this->timingPayload($timings, $jobStartedAt),
+                ]),
                 'sent_at' => now(),
             ])->save();
-            $message->recordEvent('sent', ['attempt' => $message->attempts]);
+            $message->recordEvent('sent', [
+                'attempt' => $message->attempts,
+                'duration_ms' => $this->durationMs($jobStartedAt),
+                'timing' => $timings,
+            ]);
         } catch (Throwable $exception) {
             $message->forceFill([
                 'status' => 'failed',
                 'last_error' => $exception->getMessage(),
+                'metadata' => $this->mergeMetadata($message->metadata ?? [], [
+                    'timing' => $this->timingPayload($timings, $jobStartedAt),
+                ]),
             ])->save();
             $message->recordEvent('failed', [
                 'attempt' => $message->attempts,
                 'error' => $exception->getMessage(),
+                'duration_ms' => $this->durationMs($jobStartedAt),
+                'timing' => $timings,
             ]);
 
             throw $exception;
@@ -129,5 +175,32 @@ class SendDteEmailJob implements ShouldQueue
             'storage_path' => $path,
             'source_url' => $artifact->sourceUrl,
         ]);
+    }
+
+    /**
+     * @param  array<string, int>  $timings
+     * @return array<string, mixed>
+     */
+    private function timingPayload(array $timings, float $startedAt): array
+    {
+        return $timings + [
+            'total_ms' => $this->durationMs($startedAt),
+            'completed_at' => now()->toISOString(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $current
+     * @param  array<string, mixed>  $next
+     * @return array<string, mixed>
+     */
+    private function mergeMetadata(array $current, array $next): array
+    {
+        return array_replace_recursive($current, $next);
+    }
+
+    private function durationMs(float $startedAt): int
+    {
+        return (int) round((microtime(true) - $startedAt) * 1000);
     }
 }

@@ -108,6 +108,14 @@ class DteEmailNotificationTest extends TestCase
             'notification_message_id' => $message->id,
             'type' => 'sent',
         ]);
+        $this->assertDatabaseHas('notification_events', [
+            'notification_message_id' => $message->id,
+            'type' => 'artifact_fetched',
+        ]);
+        $this->assertDatabaseHas('notification_events', [
+            'notification_message_id' => $message->id,
+            'type' => 'smtp_sent',
+        ]);
         $this->assertDatabaseHas('notification_attachments', [
             'notification_message_id' => $message->id,
             'type' => 'pdf',
@@ -121,6 +129,9 @@ class DteEmailNotificationTest extends TestCase
 
         Storage::disk('local')->assertExists("notifications/{$message->id}/DTE-01-M001P001-000000000000135.pdf");
         Storage::disk('local')->assertExists("notifications/{$message->id}/DTE-01-M001P001-000000000000135.json");
+        $this->assertIsInt($message->refresh()->metadata['timing']['total_ms']);
+        $this->assertIsInt($message->metadata['timing']['fetch_pdf_ms']);
+        $this->assertIsInt($message->metadata['timing']['smtp_send_ms']);
         Mail::assertSent(DteAcceptedMail::class, fn (DteAcceptedMail $mail): bool => $mail->message->id === $message->id);
         Http::assertSentCount(2);
         Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer core-token'));
