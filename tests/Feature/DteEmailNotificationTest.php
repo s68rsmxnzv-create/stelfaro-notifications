@@ -70,11 +70,11 @@ class DteEmailNotificationTest extends TestCase
         Http::fake([
             'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="dte-demo.pdf"',
+                'Content-Disposition' => 'inline; filename="DTE-01-M001P001-000000000000135.pdf"',
             ]),
             'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
                 'Content-Type' => 'application/json',
-                'Content-Disposition' => 'attachment; filename="dte-demo.json"',
+                'Content-Disposition' => 'attachment; filename="DTE-01-M001P001-000000000000135.json"',
             ]),
         ]);
 
@@ -111,16 +111,16 @@ class DteEmailNotificationTest extends TestCase
         $this->assertDatabaseHas('notification_attachments', [
             'notification_message_id' => $message->id,
             'type' => 'pdf',
-            'filename' => 'dte-demo.pdf',
+            'filename' => 'DTE-01-M001P001-000000000000135.pdf',
         ]);
         $this->assertDatabaseHas('notification_attachments', [
             'notification_message_id' => $message->id,
             'type' => 'json',
-            'filename' => 'dte-demo.json',
+            'filename' => 'DTE-01-M001P001-000000000000135.json',
         ]);
 
-        Storage::disk('local')->assertExists("notifications/{$message->id}/dte-demo.pdf");
-        Storage::disk('local')->assertExists("notifications/{$message->id}/dte-demo.json");
+        Storage::disk('local')->assertExists("notifications/{$message->id}/DTE-01-M001P001-000000000000135.pdf");
+        Storage::disk('local')->assertExists("notifications/{$message->id}/DTE-01-M001P001-000000000000135.json");
         Mail::assertSent(DteAcceptedMail::class, fn (DteAcceptedMail $mail): bool => $mail->message->id === $message->id);
         Http::assertSentCount(2);
         Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer core-token'));
@@ -139,11 +139,11 @@ class DteEmailNotificationTest extends TestCase
         Http::fake([
             'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="dte-demo.pdf"',
+                'Content-Disposition' => 'inline; filename="DTE-01-M001P001-000000000000135.pdf"',
             ]),
             'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
                 'Content-Type' => 'application/json',
-                'Content-Disposition' => 'attachment; filename="dte-demo.json"',
+                'Content-Disposition' => 'attachment; filename="DTE-01-M001P001-000000000000135.json"',
             ]),
         ]);
 
