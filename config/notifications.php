@@ -13,4 +13,12 @@ return [
         'disk' => env('NOTIFICATIONS_ATTACHMENTS_DISK', 'local'),
         'path' => env('NOTIFICATIONS_ATTACHMENTS_PATH', 'notifications'),
     ],
+
+    'dte' => [
+        'public_query_url' => env('DTE_PUBLIC_QUERY_URL', 'https://admin.factura.gob.sv/consultaPublica'),
+    ],
+
+    'marketing' => [
+        'whatsapp_url' => env('STELFARO_WHATSAPP_URL', 'https://wa.me/50375640652'),
+    ],
 ];

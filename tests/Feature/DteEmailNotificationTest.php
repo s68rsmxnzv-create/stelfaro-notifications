@@ -202,6 +202,40 @@ class DteEmailNotificationTest extends TestCase
         });
     }
 
+    public function test_dte_email_uses_branded_html_template_with_query_button(): void
+    {
+        config([
+            'notifications.dte.public_query_url' => 'https://admin.factura.gob.sv/consultaPublica',
+            'notifications.marketing.whatsapp_url' => 'https://wa.me/50375640652',
+        ]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'dte',
+            'source_id' => 135,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'status' => 'pending',
+            'purpose' => 'dte_delivery',
+            'metadata' => [
+                'numero_control' => 'DTE-01-M001P001-000000000000135',
+                'codigo_generacion' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'context' => [
+                    'ambiente' => '00',
+                    'fecha_emi' => '2026-06-15',
+                ],
+            ],
+        ]);
+
+        $html = (new DteAcceptedMail($message))->render();
+
+        $this->assertStringContainsString('Consultar tu DTE', $html);
+        $this->assertStringContainsString('ambiente=00&amp;codGen=AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA&amp;fechaEmi=2026-06-15', $html);
+        $this->assertStringContainsString('https://wa.me/50375640652', $html);
+        $this->assertStringContainsString('¿Aún no emites factura electrónica?', $html);
+        $this->assertStringNotContainsString('Stelfaro Notifications', $html);
+        $this->assertStringNotContainsString('http://localhost', $html);
+    }
+
     public function test_internal_token_is_required(): void
     {
         config(['notifications.api_token' => 'secret']);
