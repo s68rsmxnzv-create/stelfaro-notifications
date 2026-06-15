@@ -68,11 +68,11 @@ class DteEmailNotificationTest extends TestCase
         ]);
 
         Http::fake([
-            'https://core.example.test/api/v1/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
+            'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="dte-demo.pdf"',
             ]),
-            'https://core.example.test/api/v1/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
+            'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
                 'Content-Type' => 'application/json',
                 'Content-Disposition' => 'attachment; filename="dte-demo.json"',
             ]),
@@ -137,11 +137,11 @@ class DteEmailNotificationTest extends TestCase
         ]);
 
         Http::fake([
-            'https://core.example.test/api/v1/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
+            'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="dte-demo.pdf"',
             ]),
-            'https://core.example.test/api/v1/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
+            'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/client-json' => Http::response('{"payload":[]}', 200, [
                 'Content-Type' => 'application/json',
                 'Content-Disposition' => 'attachment; filename="dte-demo.json"',
             ]),

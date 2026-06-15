@@ -11,12 +11,12 @@ class CoreApiClient
 {
     public function dtePdf(int $documentId): CoreArtifact
     {
-        return $this->artifact("dte/drafts/{$documentId}/artifacts/pdf", "dte-{$documentId}.pdf");
+        return $this->artifact("internal/dte/drafts/{$documentId}/artifacts/pdf", "dte-{$documentId}.pdf");
     }
 
     public function dteClientJson(int $documentId): CoreArtifact
     {
-        return $this->artifact("dte/drafts/{$documentId}/artifacts/client-json", "dte-{$documentId}.json");
+        return $this->artifact("internal/dte/drafts/{$documentId}/artifacts/client-json", "dte-{$documentId}.json");
     }
 
     private function artifact(string $path, string $fallbackFilename): CoreArtifact
