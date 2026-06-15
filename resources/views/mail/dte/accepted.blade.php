@@ -44,6 +44,7 @@
                                                 @if($queryUrl)
                                                     <td width="190" valign="middle" align="right" style="padding: 0;">
                                                         <a href="{{ $queryUrl }}" style="display: block; background: #2563eb; border-radius: 8px; color: #ffffff; font-size: 16px; font-weight: 700; line-height: 22px; padding: 22px 18px; text-align: center; text-decoration: none;">
+                                                            <x-mail.icons.document-search color="#ffffff" size="22" />
                                                             Consultar tu DTE
                                                         </a>
                                                     </td>
