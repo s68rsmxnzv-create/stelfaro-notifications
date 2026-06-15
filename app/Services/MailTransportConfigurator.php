@@ -25,7 +25,7 @@ class MailTransportConfigurator
         config([
             'mail.default' => 'smtp',
             'mail.mailers.smtp.transport' => 'smtp',
-            'mail.mailers.smtp.scheme' => $transport->scheme,
+            'mail.mailers.smtp.scheme' => $this->scheme($transport),
             'mail.mailers.smtp.host' => $transport->host,
             'mail.mailers.smtp.port' => $transport->port,
             'mail.mailers.smtp.username' => $transport->username,
@@ -35,5 +35,13 @@ class MailTransportConfigurator
         ]);
 
         return $transport;
+    }
+
+    private function scheme(NotificationMailTransport $transport): string
+    {
+        return match ($transport->scheme) {
+            'ssl', 'smtps' => 'smtps',
+            default => 'smtp',
+        };
     }
 }
