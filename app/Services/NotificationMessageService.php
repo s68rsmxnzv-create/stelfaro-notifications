@@ -65,4 +65,18 @@ class NotificationMessageService
 
         return $message;
     }
+
+    public function dispatchMessagesWaitingForTransport(): int
+    {
+        $messages = NotificationMessage::query()
+            ->where('status', 'waiting_transport')
+            ->whereNull('sent_at')
+            ->get(['id']);
+
+        foreach ($messages as $message) {
+            SendDteEmailJob::dispatch($message->id);
+        }
+
+        return $messages->count();
+    }
 }

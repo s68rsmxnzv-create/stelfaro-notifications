@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationMailTransport;
+use App\Services\NotificationMessageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class NotificationMailTransportController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, NotificationMessageService $messages): JsonResponse
     {
         $current = NotificationMailTransport::query()
             ->where('is_active', true)
@@ -67,8 +68,13 @@ class NotificationMailTransportController extends Controller
             return NotificationMailTransport::query()->create($payload);
         });
 
+        $requeuedMessages = $messages->dispatchMessagesWaitingForTransport();
+
         return response()->json([
-            'data' => $this->payload($transport),
+            'data' => [
+                ...$this->payload($transport),
+                'requeued_waiting_messages' => $requeuedMessages,
+            ],
         ], 201);
     }
 

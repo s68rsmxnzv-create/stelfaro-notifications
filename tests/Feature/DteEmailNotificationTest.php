@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\SendDteEmailJob;
 use App\Mail\DteAcceptedMail;
+use App\Models\NotificationMailTransport;
 use App\Models\NotificationMessage;
 use App\Models\NotificationSenderAlias;
 use App\Services\MailTransportConfigurator;
@@ -67,8 +68,8 @@ class DteEmailNotificationTest extends TestCase
             'notifications.core.token' => 'core-token',
             'notifications.attachments.disk' => 'local',
             'notifications.attachments.path' => 'notifications',
-            'services.notifications.default_provider' => 'array',
         ]);
+        $this->createActiveMailTransport();
 
         Http::fake([
             'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
@@ -105,7 +106,7 @@ class DteEmailNotificationTest extends TestCase
 
         $this->assertSame('sent', $message->status);
         $this->assertSame(1, $message->attempts);
-        $this->assertSame('array', $message->provider);
+        $this->assertSame('Hostinger Stelfaro', $message->provider);
         $this->assertNotNull($message->sent_at);
         $this->assertDatabaseHas('notification_events', [
             'notification_message_id' => $message->id,
@@ -153,8 +154,8 @@ class DteEmailNotificationTest extends TestCase
             'notifications.core.token' => 'core-token',
             'notifications.attachments.disk' => 'local',
             'notifications.attachments.path' => 'notifications',
-            'services.notifications.default_provider' => 'array',
         ]);
+        $this->createActiveMailTransport();
 
         Http::fake([
             'https://core.example.test/api/v1/internal/mh/events/22/artifacts/pdf' => Http::response('%PDF-event', 200, [
@@ -225,6 +226,7 @@ class DteEmailNotificationTest extends TestCase
             'notifications.attachments.disk' => 'local',
             'notifications.attachments.path' => 'notifications',
         ]);
+        $this->createActiveMailTransport();
 
         Http::fake([
             'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('%PDF-1.4', 200, [
@@ -279,6 +281,100 @@ class DteEmailNotificationTest extends TestCase
                 && $envelope->from?->name === 'Vidrieria El Faro'
                 && $envelope->replyTo === [];
         });
+    }
+
+    public function test_send_dte_email_job_waits_when_mail_transport_is_not_configured(): void
+    {
+        Mail::fake();
+        Http::fake();
+        Storage::fake('local');
+        config([
+            'notifications.core.base_url' => 'https://core.example.test/api/v1',
+            'notifications.attachments.disk' => 'local',
+            'notifications.attachments.path' => 'notifications',
+        ]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'dte',
+            'source_id' => 135,
+            'empresa_id' => 1,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'status' => 'pending',
+            'purpose' => 'dte_delivery',
+            'metadata' => [
+                'numero_control' => 'DTE-01-M001P001-000000000000135',
+            ],
+        ]);
+
+        (new SendDteEmailJob($message->id))->handle(
+            app(CoreApiClient::class),
+            app(SenderAliasResolver::class),
+            app(MailTransportConfigurator::class),
+        );
+
+        $message->refresh();
+
+        $this->assertSame('waiting_transport', $message->status);
+        $this->assertSame(0, $message->attempts);
+        $this->assertNull($message->sent_at);
+        $this->assertSame('mail_transport_missing', $message->metadata['delivery_blocker']);
+        $this->assertDatabaseHas('notification_events', [
+            'notification_message_id' => $message->id,
+            'type' => 'waiting_transport',
+        ]);
+        Mail::assertNothingSent();
+        Http::assertNothingSent();
+    }
+
+    public function test_send_dte_email_job_marks_retrying_before_attempts_are_exhausted(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        config([
+            'notifications.core.base_url' => 'https://core.example.test/api/v1',
+            'notifications.attachments.disk' => 'local',
+            'notifications.attachments.path' => 'notifications',
+        ]);
+        $this->createActiveMailTransport();
+
+        Http::fake([
+            'https://core.example.test/api/v1/internal/dte/drafts/135/artifacts/pdf' => Http::response('No autorizado', 401),
+        ]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'dte',
+            'source_id' => 135,
+            'empresa_id' => 1,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'status' => 'pending',
+            'purpose' => 'dte_delivery',
+            'metadata' => [
+                'numero_control' => 'DTE-01-M001P001-000000000000135',
+            ],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+
+        try {
+            (new SendDteEmailJob($message->id))->handle(
+                app(CoreApiClient::class),
+                app(SenderAliasResolver::class),
+                app(MailTransportConfigurator::class),
+            );
+        } finally {
+            $message->refresh();
+
+            $this->assertSame('retrying', $message->status);
+            $this->assertSame(1, $message->attempts);
+            $this->assertNull($message->sent_at);
+            $this->assertDatabaseHas('notification_events', [
+                'notification_message_id' => $message->id,
+                'type' => 'retry_scheduled',
+            ]);
+            Mail::assertNothingSent();
+        }
     }
 
     public function test_dte_email_uses_branded_html_template_with_query_button(): void
@@ -356,5 +452,20 @@ class DteEmailNotificationTest extends TestCase
                 'email' => 'cliente@example.test',
             ],
         ])->assertUnauthorized();
+    }
+
+    private function createActiveMailTransport(): NotificationMailTransport
+    {
+        return NotificationMailTransport::query()->create([
+            'name' => 'Hostinger Stelfaro',
+            'host' => 'smtp.hostinger.com',
+            'port' => 465,
+            'scheme' => 'ssl',
+            'username' => 'noreply@stelfaro.com',
+            'password' => 'secret-password',
+            'default_from_email' => 'noreply@stelfaro.com',
+            'default_from_name' => 'StelFaro',
+            'is_active' => true,
+        ]);
     }
 }

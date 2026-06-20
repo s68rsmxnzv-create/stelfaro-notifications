@@ -19,6 +19,7 @@ class SendDteEmailJob implements ShouldQueue
     use Queueable;
 
     public int $tries = 3;
+    private const WAITING_TRANSPORT_RELEASE_SECONDS = 600;
 
     /**
      * @var array<int, int>
@@ -37,17 +38,23 @@ class SendDteEmailJob implements ShouldQueue
             return;
         }
 
-        $message->forceFill([
-            'status' => $message->attempts > 0 ? 'retrying' : 'processing',
-            'attempts' => $message->attempts + 1,
-            'last_error' => null,
-        ])->save();
-        $message->recordEvent('processing', ['attempt' => $message->attempts]);
-
         try {
             $stageStartedAt = microtime(true);
             $activeTransport = $mailTransport->applyActiveTransport();
             $timings['apply_transport_ms'] = $this->durationMs($stageStartedAt);
+
+            if (! $activeTransport) {
+                $this->parkUntilMailTransportIsConfigured($message, $timings, $jobStartedAt);
+
+                return;
+            }
+
+            $message->forceFill([
+                'status' => $message->attempts > 0 ? 'retrying' : 'processing',
+                'attempts' => $message->attempts + 1,
+                'last_error' => null,
+            ])->save();
+            $message->recordEvent('processing', ['attempt' => $message->attempts]);
 
             $stageStartedAt = microtime(true);
             $this->resolveSenderAlias($message, $aliases);
@@ -103,14 +110,17 @@ class SendDteEmailJob implements ShouldQueue
                 'timing' => $timings,
             ]);
         } catch (Throwable $exception) {
+            $willRetry = $this->attempts() < $this->tries;
+            $eventType = $willRetry ? 'retry_scheduled' : 'failed';
+
             $message->forceFill([
-                'status' => 'failed',
+                'status' => $willRetry ? 'retrying' : 'failed',
                 'last_error' => $exception->getMessage(),
                 'metadata' => $this->mergeMetadata($message->metadata ?? [], [
                     'timing' => $this->timingPayload($timings, $jobStartedAt),
                 ]),
             ])->save();
-            $message->recordEvent('failed', [
+            $message->recordEvent($eventType, [
                 'attempt' => $message->attempts,
                 'error' => $exception->getMessage(),
                 'duration_ms' => $this->durationMs($jobStartedAt),
@@ -119,6 +129,52 @@ class SendDteEmailJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $message = NotificationMessage::query()->find($this->messageId);
+
+        if (! $message || $message->status === 'sent') {
+            return;
+        }
+
+        $message->forceFill([
+            'status' => 'failed',
+            'last_error' => $exception?->getMessage() ?? $message->last_error,
+        ])->save();
+
+        $message->recordEvent('failed', [
+            'attempt' => $message->attempts,
+            'error' => $exception?->getMessage() ?? $message->last_error,
+        ]);
+    }
+
+    /**
+     * @param  array<string, int>  $timings
+     */
+    private function parkUntilMailTransportIsConfigured(NotificationMessage $message, array $timings, float $jobStartedAt): void
+    {
+        $error = 'No hay transporte SMTP activo configurado.';
+
+        $message->forceFill([
+            'status' => 'waiting_transport',
+            'last_error' => $error,
+            'metadata' => $this->mergeMetadata($message->metadata ?? [], [
+                'delivery_blocker' => 'mail_transport_missing',
+                'waiting_transport_since' => data_get($message->metadata, 'waiting_transport_since') ?? now()->toISOString(),
+                'timing' => $this->timingPayload($timings, $jobStartedAt),
+            ]),
+        ])->save();
+
+        $message->recordEvent('waiting_transport', [
+            'reason' => 'mail_transport_missing',
+            'retry_after_seconds' => self::WAITING_TRANSPORT_RELEASE_SECONDS,
+            'duration_ms' => $this->durationMs($jobStartedAt),
+            'timing' => $timings,
+        ]);
+
+        $this->release(self::WAITING_TRANSPORT_RELEASE_SECONDS);
     }
 
     private function resolveSenderAlias(NotificationMessage $message, SenderAliasResolver $aliases): void
