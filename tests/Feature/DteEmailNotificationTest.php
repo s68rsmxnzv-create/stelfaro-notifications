@@ -59,6 +59,40 @@ class DteEmailNotificationTest extends TestCase
         Queue::assertPushed(SendDteEmailJob::class, fn (SendDteEmailJob $job): bool => $job->messageId === $message->id);
     }
 
+    public function test_it_exposes_internal_notification_message_status(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'dte',
+            'source_id' => 135,
+            'empresa_id' => 1,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'subject' => 'Su factura electronica',
+            'status' => 'sent',
+            'purpose' => 'dte_delivery',
+            'provider' => 'smtp',
+            'attempts' => 1,
+            'sent_at' => now(),
+        ]);
+
+        $this
+            ->withToken('secret')
+            ->getJson("/api/v1/messages/{$message->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $message->id)
+            ->assertJsonPath('data.source_type', 'dte')
+            ->assertJsonPath('data.source_id', 135)
+            ->assertJsonPath('data.recipient_email', 'cliente@example.test')
+            ->assertJsonPath('data.status', 'sent')
+            ->assertJsonPath('data.provider', 'smtp')
+            ->assertJsonPath('data.attempts', 1);
+    }
+
     public function test_send_dte_email_job_fetches_artifacts_and_sends_mail(): void
     {
         Mail::fake();

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\DteEmailNotificationController;
 use App\Http\Controllers\Api\V1\MhFiscalEventEmailNotificationController;
 use App\Http\Controllers\Api\V1\NotificationMailTransportController;
+use App\Http\Controllers\Api\V1\NotificationMessageController;
 use App\Http\Controllers\Api\V1\NotificationSenderAliasController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,7 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('sender-aliases/{alias}', [NotificationSenderAliasController::class, 'update']);
         Route::get('mail-transport', [NotificationMailTransportController::class, 'show']);
         Route::post('mail-transport', [NotificationMailTransportController::class, 'store']);
+        Route::get('messages/{message}', [NotificationMessageController::class, 'show']);
         Route::post('dte/{document}/email', DteEmailNotificationController::class);
         Route::post('mh-events/{event}/email', MhFiscalEventEmailNotificationController::class);
     });
