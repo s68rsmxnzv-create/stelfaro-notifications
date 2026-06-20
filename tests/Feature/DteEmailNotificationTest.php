@@ -23,7 +23,10 @@ class DteEmailNotificationTest extends TestCase
     public function test_it_queues_dte_email_notification_request(): void
     {
         Queue::fake();
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         $response = $this
             ->withToken('secret')
@@ -142,7 +145,10 @@ class DteEmailNotificationTest extends TestCase
         Mail::fake();
         Storage::fake('local');
         config([
-            'notifications.api_token' => 'secret',
+            'notifications.internal_tokens' => [[
+                'client' => 'platform-api',
+                'token_hash' => hash('sha256', 'secret'),
+            ]],
             'notifications.core.base_url' => 'https://core.example.test/api/v1',
             'notifications.core.token' => 'core-token',
             'notifications.attachments.disk' => 'local',
@@ -340,7 +346,10 @@ class DteEmailNotificationTest extends TestCase
 
     public function test_internal_token_is_required(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         $this->postJson('/api/v1/dte/135/email', [
             'recipient' => [

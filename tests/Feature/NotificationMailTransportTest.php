@@ -12,7 +12,10 @@ class NotificationMailTransportTest extends TestCase
 
     public function test_it_stores_active_smtp_transport_without_exposing_password(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         $response = $this
             ->withToken('secret')
@@ -40,7 +43,10 @@ class NotificationMailTransportTest extends TestCase
 
     public function test_it_keeps_previous_password_when_updating_without_password(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         NotificationMailTransport::query()->create([
             'name' => 'Hostinger Stelfaro',

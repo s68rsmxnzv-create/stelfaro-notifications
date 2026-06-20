@@ -1,7 +1,26 @@
 <?php
 
 return [
-    'api_token' => env('NOTIFICATIONS_API_TOKEN'),
+    'internal_tokens' => array_values(array_filter(array_map(function (string $entry): ?array {
+        $parts = explode(':', trim($entry), 2);
+
+        if (count($parts) !== 2) {
+            return null;
+        }
+
+        [$client, $tokenHash] = $parts;
+        $client = trim($client);
+        $tokenHash = strtolower(trim($tokenHash));
+
+        if ($client === '' || ! preg_match('/^[a-f0-9]{64}$/', $tokenHash)) {
+            return null;
+        }
+
+        return [
+            'client' => $client,
+            'token_hash' => $tokenHash,
+        ];
+    }, explode(',', (string) env('NOTIFICATIONS_INTERNAL_TOKENS', ''))))),
 
     'core' => [
         'base_url' => env('DTE_CORE_BASE_URL', 'http://127.0.0.1/api/v1'),

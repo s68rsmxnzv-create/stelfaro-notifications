@@ -10,7 +10,7 @@ Solicitud interna para enviar un DTE aceptado por correo:
 
 ```http
 POST /api/v1/dte/{document}/email
-Authorization: Bearer {NOTIFICATIONS_API_TOKEN}
+Authorization: Bearer {platform-api token}
 Content-Type: application/json
 ```
 
@@ -42,7 +42,7 @@ El buzón SMTP es el transporte global; los alias son direcciones remitentes per
 
 ```http
 POST /api/v1/sender-aliases
-Authorization: Bearer {NOTIFICATIONS_API_TOKEN}
+Authorization: Bearer {platform-api token}
 Content-Type: application/json
 ```
 
@@ -60,7 +60,7 @@ El envio de DTE usa `purpose = dte_delivery` por defecto.
 ## Variables
 
 ```dotenv
-NOTIFICATIONS_API_TOKEN=
+NOTIFICATIONS_INTERNAL_TOKENS=platform-api:<sha256>,dte-core:<sha256>
 NOTIFICATIONS_PROVIDER="${MAIL_MAILER}"
 NOTIFICATIONS_ATTACHMENTS_DISK=local
 NOTIFICATIONS_ATTACHMENTS_PATH=notifications

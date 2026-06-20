@@ -12,7 +12,10 @@ class NotificationSenderAliasTest extends TestCase
 
     public function test_it_creates_global_sender_alias_for_a_purpose(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         $response = $this
             ->withToken('secret')
@@ -37,7 +40,10 @@ class NotificationSenderAliasTest extends TestCase
 
     public function test_it_updates_existing_alias_for_same_scope_and_purpose(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         NotificationSenderAlias::query()->create([
             'scope_type' => 'global',
@@ -64,7 +70,10 @@ class NotificationSenderAliasTest extends TestCase
 
     public function test_it_lists_sender_aliases(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         NotificationSenderAlias::query()->create([
             'scope_type' => 'global',
@@ -83,7 +92,10 @@ class NotificationSenderAliasTest extends TestCase
 
     public function test_sender_aliases_are_always_global_even_if_scope_is_sent(): void
     {
-        config(['notifications.api_token' => 'secret']);
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
 
         $this
             ->withToken('secret')
