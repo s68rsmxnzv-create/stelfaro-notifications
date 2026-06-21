@@ -32,7 +32,7 @@ class PlatformInvitationMail extends Mailable
         return new Content(
             view: 'mail.platform.invitation',
             with: [
-                'message' => $this->message,
+                'notificationMessage' => $this->message,
                 'tenant' => $metadata['tenant'] ?? [],
                 'invitation' => $metadata['invitation'] ?? [],
             ],

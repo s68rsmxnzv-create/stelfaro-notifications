@@ -120,6 +120,10 @@ class NotificationActivityTest extends TestCase
         $this->assertSame('StelFaro Invitaciones', $message->from_name);
         $this->assertSame('soporte@stelfaro.com', $message->reply_to_email);
         $this->assertSame('sent', $message->status);
+        $this->assertStringContainsString(
+            'Aceptar invitacion',
+            (new PlatformInvitationMail($message))->render()
+        );
 
         Mail::assertSent(PlatformInvitationMail::class);
     }
