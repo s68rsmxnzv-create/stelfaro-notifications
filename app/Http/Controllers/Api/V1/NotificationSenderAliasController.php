@@ -72,6 +72,9 @@ class NotificationSenderAliasController extends Controller
         return $request->validate([
             'purpose' => [$required, 'string', 'max:80', 'regex:/^[a-z0-9_\\.\\-]+$/'],
             'from_email' => [$required, 'email:rfc', 'max:255'],
+            'from_name' => ['sometimes', 'nullable', 'string', 'max:160'],
+            'reply_to_email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
+            'reply_to_name' => ['sometimes', 'nullable', 'string', 'max:160'],
             'is_active' => ['sometimes', 'boolean'],
             'metadata' => ['sometimes', 'array'],
         ]);

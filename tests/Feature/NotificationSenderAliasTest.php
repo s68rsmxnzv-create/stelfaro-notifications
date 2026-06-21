@@ -22,19 +22,28 @@ class NotificationSenderAliasTest extends TestCase
             ->postJson('/api/v1/sender-aliases', [
                 'purpose' => 'dte_delivery',
                 'from_email' => 'stelfaro.dte@stelfaro.com',
+                'from_name' => 'StelFaro DTE',
+                'reply_to_email' => 'soporte@stelfaro.com',
+                'reply_to_name' => 'Soporte StelFaro',
             ]);
 
         $response->assertCreated()
             ->assertJsonPath('data.scope_type', 'global')
             ->assertJsonPath('data.scope_id', 0)
             ->assertJsonPath('data.purpose', 'dte_delivery')
-            ->assertJsonPath('data.from_email', 'stelfaro.dte@stelfaro.com');
+            ->assertJsonPath('data.from_email', 'stelfaro.dte@stelfaro.com')
+            ->assertJsonPath('data.from_name', 'StelFaro DTE')
+            ->assertJsonPath('data.reply_to_email', 'soporte@stelfaro.com')
+            ->assertJsonPath('data.reply_to_name', 'Soporte StelFaro');
 
         $this->assertDatabaseHas('notification_sender_aliases', [
             'scope_type' => 'global',
             'scope_id' => 0,
             'purpose' => 'dte_delivery',
             'from_email' => 'stelfaro.dte@stelfaro.com',
+            'from_name' => 'StelFaro DTE',
+            'reply_to_email' => 'soporte@stelfaro.com',
+            'reply_to_name' => 'Soporte StelFaro',
         ]);
     }
 

@@ -5,25 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class NotificationSenderAlias extends Model
+class NotificationActivity extends Model
 {
     protected $fillable = [
-        'scope_type',
-        'scope_id',
-        'purpose',
-        'from_email',
-        'from_name',
-        'reply_to_email',
-        'reply_to_name',
-        'is_active',
+        'key',
+        'name',
+        'description',
+        'status',
         'metadata',
     ];
 
     protected function casts(): array
     {
         return [
-            'scope_id' => 'integer',
-            'is_active' => 'boolean',
             'metadata' => 'array',
         ];
     }
