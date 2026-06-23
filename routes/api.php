@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\NotificationMailTransportController;
 use App\Http\Controllers\Api\V1\NotificationMessageController;
 use App\Http\Controllers\Api\V1\NotificationSenderAliasController;
 use App\Http\Controllers\Api\V1\PlatformInvitationEmailNotificationController;
+use App\Http\Controllers\Api\V1\PlatformTemporaryPasswordEmailNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -28,6 +29,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('mail-transport', [NotificationMailTransportController::class, 'store']);
         Route::get('messages/{message}', [NotificationMessageController::class, 'show']);
         Route::post('platform/invitations/email', PlatformInvitationEmailNotificationController::class);
+        Route::post('platform/temporary-passwords/email', PlatformTemporaryPasswordEmailNotificationController::class);
         Route::post('dte/{document}/email', DteEmailNotificationController::class);
         Route::post('mh-events/{event}/email', MhFiscalEventEmailNotificationController::class);
     });

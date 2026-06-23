@@ -26,6 +26,7 @@ class NotificationMessage extends Model
         'attempts',
         'last_error',
         'metadata',
+        'sensitive_metadata',
         'sent_at',
     ];
 
@@ -36,6 +37,7 @@ class NotificationMessage extends Model
             'empresa_id' => 'integer',
             'attempts' => 'integer',
             'metadata' => 'array',
+            'sensitive_metadata' => 'encrypted:array',
             'sent_at' => 'datetime',
         ];
     }
