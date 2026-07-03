@@ -474,6 +474,33 @@ class DteEmailNotificationTest extends TestCase
         $this->assertStringNotContainsString('Consultar tu DTE', $html);
     }
 
+    public function test_dte_email_template_adapts_to_return_notice(): void
+    {
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'mh_fiscal_event',
+            'source_id' => 23,
+            'recipient_email' => 'cliente@example.test',
+            'recipient_name' => 'Cliente Demo',
+            'status' => 'pending',
+            'purpose' => 'dte_delivery',
+            'metadata' => [
+                'numero_control' => 'EVT-RETORNO-001',
+                'codigo_generacion' => 'CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC',
+                'context' => [
+                    'notification_type' => 'return',
+                    'query_enabled' => false,
+                ],
+            ],
+        ]);
+
+        $html = (new DteAcceptedMail($message))->render();
+
+        $this->assertStringContainsString('evento de retorno relacionado con tu documento tributario electrónico', $html);
+        $this->assertStringContainsString('Evento de retorno', $html);
+        $this->assertStringContainsString('PDF y el JSON fiscal del evento de retorno', $html);
+        $this->assertStringNotContainsString('Consultar tu DTE', $html);
+    }
+
     public function test_internal_token_is_required(): void
     {
         config(['notifications.internal_tokens' => [[

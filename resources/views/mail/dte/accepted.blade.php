@@ -7,14 +7,29 @@
 </head>
 <body style="margin: 0; padding: 0; background: #0f172a; color: #e5efff; font-family: Arial, Helvetica, sans-serif;">
     @php
-        $isInvalidation = data_get($metadata, 'context.notification_type') === 'invalidation';
-        $title = $isInvalidation ? 'Invalidación de documento tributario electrónico' : 'Documento tributario electrónico';
-        $intro = $isInvalidation
-            ? 'Se ha registrado correctamente la invalidación de un documento tributario electrónico ante el Ministerio de Hacienda.'
-            : 'Tu documento tributario electrónico fue emitido y recibido correctamente por el Ministerio de Hacienda.';
-        $details = $isInvalidation
-            ? 'Adjuntamos el PDF y el JSON fiscal del evento de invalidación para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.'
-            : 'Adjuntamos el PDF y el JSON fiscal para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.';
+        $notificationType = data_get($metadata, 'context.notification_type');
+        $isInvalidation = $notificationType === 'invalidation';
+        $isReturn = $notificationType === 'return';
+        $title = match (true) {
+            $isInvalidation => 'Invalidación de documento tributario electrónico',
+            $isReturn => 'Retorno de documento tributario electrónico',
+            default => 'Documento tributario electrónico',
+        };
+        $intro = match (true) {
+            $isInvalidation => 'Se ha registrado correctamente la invalidación de un documento tributario electrónico ante el Ministerio de Hacienda.',
+            $isReturn => 'Se ha registrado correctamente un evento de retorno relacionado con tu documento tributario electrónico ante el Ministerio de Hacienda.',
+            default => 'Tu documento tributario electrónico fue emitido y recibido correctamente por el Ministerio de Hacienda.',
+        };
+        $details = match (true) {
+            $isInvalidation => 'Adjuntamos el PDF y el JSON fiscal del evento de invalidación para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.',
+            $isReturn => 'Adjuntamos el PDF y el JSON fiscal del evento de retorno para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.',
+            default => 'Adjuntamos el PDF y el JSON fiscal para tu resguardo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.',
+        };
+        $identifierLabel = match (true) {
+            $isInvalidation => 'Evento de invalidación',
+            $isReturn => 'Evento de retorno',
+            default => 'Número de control',
+        };
     @endphp
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #0f172a; margin: 0; padding: 0;">
@@ -42,7 +57,7 @@
                                             <tr>
                                                 <td valign="middle" style="padding: 0 18px 0 0;">
                                                     @if(! empty($metadata['numero_control']))
-                                                        <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">{{ $isInvalidation ? 'Evento de invalidación' : 'Número de control' }}</p>
+                                                        <p style="margin: 0 0 12px; color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase;">{{ $identifierLabel }}</p>
                                                         <p style="margin: 0 0 18px; color: #ffffff; font-size: 15px; line-height: 22px; word-break: break-word;">{{ $metadata['numero_control'] }}</p>
                                                     @endif
 
