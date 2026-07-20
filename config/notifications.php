@@ -23,7 +23,7 @@ return [
     }, explode(',', (string) env('NOTIFICATIONS_INTERNAL_TOKENS', ''))))),
 
     'core' => [
-        'base_url' => env('DTE_CORE_BASE_URL', 'http://127.0.0.1/api/v1'),
+        'base_url' => env('DTE_CORE_BASE_URL', 'http://127.0.0.1:8181/api/v1'),
         'token' => env('DTE_CORE_TOKEN'),
         'timeout' => (int) env('DTE_CORE_TIMEOUT', 20),
     ],
