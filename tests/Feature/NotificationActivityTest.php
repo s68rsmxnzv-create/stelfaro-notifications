@@ -124,7 +124,7 @@ class NotificationActivityTest extends TestCase
                     'role' => 'billing_user',
                     'status' => 'pending',
                     'expires_at' => now()->addWeek()->toISOString(),
-                    'accept_url' => 'https://platform.stelfaro.com/invitations/token-demo',
+                    'accept_url' => 'https://new.stelfaro.com/invitations/token-demo',
                 ],
             ])
             ->assertAccepted()
@@ -170,7 +170,7 @@ class NotificationActivityTest extends TestCase
                 ],
                 'temporary_password' => [
                     'value' => 'Sf-Temp-1234',
-                    'login_url' => 'https://platform.stelfaro.com/login',
+                    'login_url' => 'https://new.stelfaro.com/login',
                     'must_change' => true,
                     'reason' => 'direct_user_creation',
                 ],
@@ -225,7 +225,7 @@ class NotificationActivityTest extends TestCase
                 ],
                 'temporary_password' => [
                     'value' => 'Sf-Temp-1234',
-                    'login_url' => 'https://platform.stelfaro.com/login',
+                    'login_url' => 'https://new.stelfaro.com/login',
                     'must_change' => true,
                     'reason' => 'direct_user_creation',
                 ],
