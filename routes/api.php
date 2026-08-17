@@ -25,12 +25,18 @@ Route::prefix('v1')->group(function (): void {
         Route::post('activities', [NotificationActivityController::class, 'store']);
         Route::post('activities/{activity}/actions', [NotificationActivityController::class, 'storeAction']);
         Route::patch('actions/{action}', [NotificationActivityController::class, 'updateAction']);
-        Route::get('mail-transport', [NotificationMailTransportController::class, 'show']);
-        Route::post('mail-transport', [NotificationMailTransportController::class, 'store']);
         Route::get('messages/{message}', [NotificationMessageController::class, 'show']);
-        Route::post('platform/invitations/email', PlatformInvitationEmailNotificationController::class);
-        Route::post('platform/temporary-passwords/email', PlatformTemporaryPasswordEmailNotificationController::class);
-        Route::post('dte/{document}/email', DteEmailNotificationController::class);
-        Route::post('mh-events/{event}/email', MhFiscalEventEmailNotificationController::class);
+
+        Route::middleware('internal.client:platform-api')->group(function (): void {
+            Route::get('mail-transport', [NotificationMailTransportController::class, 'show']);
+            Route::post('mail-transport', [NotificationMailTransportController::class, 'store']);
+            Route::post('platform/invitations/email', PlatformInvitationEmailNotificationController::class);
+            Route::post('platform/temporary-passwords/email', PlatformTemporaryPasswordEmailNotificationController::class);
+        });
+
+        Route::middleware('internal.client:dte-core')->group(function (): void {
+            Route::post('dte/{document}/email', DteEmailNotificationController::class);
+            Route::post('mh-events/{event}/email', MhFiscalEventEmailNotificationController::class);
+        });
     });
 });

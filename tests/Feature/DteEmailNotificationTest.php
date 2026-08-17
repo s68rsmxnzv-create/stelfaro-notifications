@@ -25,7 +25,7 @@ class DteEmailNotificationTest extends TestCase
     {
         Queue::fake();
         config(['notifications.internal_tokens' => [[
-            'client' => 'platform-api',
+            'client' => 'dte-core',
             'token_hash' => hash('sha256', 'secret'),
         ]]]);
 
@@ -62,7 +62,7 @@ class DteEmailNotificationTest extends TestCase
     public function test_it_exposes_internal_notification_message_status(): void
     {
         config(['notifications.internal_tokens' => [[
-            'client' => 'platform-api',
+            'client' => 'dte-core',
             'token_hash' => hash('sha256', 'secret'),
         ]]]);
 
@@ -181,7 +181,7 @@ class DteEmailNotificationTest extends TestCase
         Storage::fake('local');
         config([
             'notifications.internal_tokens' => [[
-                'client' => 'platform-api',
+                'client' => 'dte-core',
                 'token_hash' => hash('sha256', 'secret'),
             ]],
             'notifications.core.base_url' => 'https://core.example.test/api/v1',
@@ -513,6 +513,64 @@ class DteEmailNotificationTest extends TestCase
                 'email' => 'cliente@example.test',
             ],
         ])->assertUnauthorized();
+    }
+
+    public function test_platform_api_client_cannot_send_dte_email(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'platform-api',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $this
+            ->withToken('secret')
+            ->postJson('/api/v1/dte/135/email', [
+                'recipient' => ['email' => 'cliente@example.test'],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_dte_core_client_cannot_read_platform_notification_message(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'platform_temporary_password',
+            'source_id' => 9,
+            'recipient_email' => 'usuario@example.test',
+            'status' => 'sent',
+            'purpose' => 'platform_temporary_password',
+        ]);
+
+        $this
+            ->withToken('secret')
+            ->getJson("/api/v1/messages/{$message->id}")
+            ->assertNotFound();
+    }
+
+    public function test_dte_core_client_can_read_its_own_notification_message(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'dte',
+            'source_id' => 135,
+            'recipient_email' => 'cliente@example.test',
+            'status' => 'sent',
+            'purpose' => 'dte_delivery',
+        ]);
+
+        $this
+            ->withToken('secret')
+            ->getJson("/api/v1/messages/{$message->id}")
+            ->assertOk()
+            ->assertJsonPath('data.source_type', 'dte');
     }
 
     private function createActiveMailTransport(): NotificationMailTransport

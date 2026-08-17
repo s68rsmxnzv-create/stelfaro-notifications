@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureInternalApiClient;
 use App\Http\Middleware\EnsureInternalApiToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'internal.token' => EnsureInternalApiToken::class,
+            'internal.client' => EnsureInternalApiClient::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

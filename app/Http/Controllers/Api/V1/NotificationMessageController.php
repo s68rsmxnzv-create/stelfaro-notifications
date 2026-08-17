@@ -5,11 +5,25 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\NotificationMessage;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class NotificationMessageController extends Controller
 {
-    public function show(NotificationMessage $message): JsonResponse
+    /**
+     * @var array<string, list<string>>
+     */
+    private const SOURCE_TYPES_BY_CLIENT = [
+        'dte-core' => ['dte', 'mh_fiscal_event'],
+        'platform-api' => ['platform_invitation', 'platform_temporary_password'],
+    ];
+
+    public function show(NotificationMessage $message, Request $request): JsonResponse
     {
+        $client = $request->attributes->get('internal_api_client');
+        $allowedSourceTypes = self::SOURCE_TYPES_BY_CLIENT[$client] ?? [];
+
+        abort_unless(in_array($message->source_type, $allowedSourceTypes, true), 404);
+
         return response()->json([
             'data' => [
                 'id' => $message->id,

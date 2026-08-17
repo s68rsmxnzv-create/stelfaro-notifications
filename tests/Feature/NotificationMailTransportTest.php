@@ -44,6 +44,30 @@ class NotificationMailTransportTest extends TestCase
         $this->assertNotSame('secret-password', $transport->getRawOriginal('password'));
     }
 
+    public function test_dte_core_client_cannot_reconfigure_mail_transport(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $this
+            ->withToken('secret')
+            ->postJson('/api/v1/mail-transport', [
+                'name' => 'Attacker SMTP',
+                'host' => 'attacker.example.test',
+                'port' => 587,
+                'scheme' => 'tls',
+                'username' => 'attacker',
+                'password' => 'attacker-password',
+                'default_from_email' => 'noreply@stelfaro.com',
+                'default_from_name' => 'StelFaro',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('notification_mail_transports', 0);
+    }
+
     public function test_it_keeps_previous_password_when_updating_without_password(): void
     {
         config(['notifications.internal_tokens' => [[
