@@ -41,5 +41,8 @@
             </td>
         </tr>
     </table>
+    @if ($trackingPixelUrl ?? null)
+        <img src="{{ $trackingPixelUrl }}" width="1" height="1" alt="" style="display:block;border:0;">
+    @endif
 </body>
 </html>

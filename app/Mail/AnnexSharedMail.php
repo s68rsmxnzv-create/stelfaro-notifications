@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\NotificationAttachment;
 use App\Models\NotificationMessage;
+use App\Support\MessageOpenTrackingToken;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -22,6 +23,7 @@ class AnnexSharedMail extends Mailable
     {
         return new Envelope(
             from: $this->fromAddress(),
+            cc: $this->ccAddresses(),
             subject: $this->message->subject ?: $this->defaultSubject(),
         );
     }
@@ -35,6 +37,7 @@ class AnnexSharedMail extends Mailable
             with: [
                 'notificationMessage' => $this->message,
                 'metadata' => $metadata,
+                'trackingPixelUrl' => app(MessageOpenTrackingToken::class)->url($this->message),
             ],
         );
     }
@@ -67,5 +70,23 @@ class AnnexSharedMail extends Mailable
         return $this->message->from_email
             ? new Address($this->message->from_email, $this->message->from_name ?: null)
             : null;
+    }
+
+    /**
+     * @return array<int, Address>
+     */
+    private function ccAddresses(): array
+    {
+        $cc = $this->message->metadata['cc'] ?? [];
+
+        if (! is_array($cc)) {
+            return [];
+        }
+
+        return collect($cc)
+            ->filter(fn ($email): bool => is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->map(fn (string $email): Address => new Address($email))
+            ->values()
+            ->all();
     }
 }

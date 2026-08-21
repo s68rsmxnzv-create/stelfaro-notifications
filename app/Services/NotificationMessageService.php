@@ -45,6 +45,7 @@ class NotificationMessageService
                     'empresa_nombre' => $data['empresa_nombre'] ?? null,
                     'empresa_nombre_comercial' => $data['empresa_nombre_comercial'] ?? null,
                     'requested_by' => $data['requested_by'] ?? null,
+                    'cc' => array_values($data['cc'] ?? []),
                 ],
             ]);
 

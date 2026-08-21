@@ -13,7 +13,7 @@ class NotificationMessageController extends Controller
      * @var array<string, list<string>>
      */
     private const SOURCE_TYPES_BY_CLIENT = [
-        'dte-core' => ['dte', 'mh_fiscal_event'],
+        'dte-core' => ['dte', 'mh_fiscal_event', 'annex'],
         'platform-api' => ['platform_invitation', 'platform_temporary_password'],
     ];
 
@@ -44,6 +44,8 @@ class NotificationMessageController extends Controller
                 'created_at' => optional($message->created_at)->toISOString(),
                 'updated_at' => optional($message->updated_at)->toISOString(),
                 'sent_at' => optional($message->sent_at)->toISOString(),
+                'opened_at' => optional($message->opened_at)->toISOString(),
+                'open_count' => $message->open_count,
             ],
         ]);
     }

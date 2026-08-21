@@ -100,6 +100,67 @@ class AnnexEmailNotificationTest extends TestCase
         Mail::assertSent(AnnexSharedMail::class, fn (AnnexSharedMail $mail): bool => $mail->message->id === $message->id);
     }
 
+    public function test_send_annex_email_job_sends_copy_to_cc_recipients(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        config([
+            'notifications.attachments.disk' => 'local',
+            'notifications.attachments.path' => 'notifications',
+        ]);
+        $this->createActiveMailTransport();
+
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $this
+            ->withToken('secret')
+            ->postJson('/api/v1/annex/7/email', [
+                'recipient' => ['email' => 'contador@example.test'],
+                'book' => 'ventas_contribuyente',
+                'filename' => 'anexo_ventas_contribuyente.csv',
+                'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                'cc' => ['contabilidad@example.test', 'socio@example.test'],
+            ])
+            ->assertAccepted();
+
+        $message = NotificationMessage::query()->firstOrFail();
+        $this->assertSame(['contabilidad@example.test', 'socio@example.test'], $message->metadata['cc']);
+
+        (new SendAnnexEmailJob($message->id))->handle(
+            app(SenderAliasResolver::class),
+            app(MailTransportConfigurator::class),
+        );
+
+        Mail::assertSent(AnnexSharedMail::class, function (AnnexSharedMail $mail): bool {
+            $ccEmails = collect($mail->envelope()->cc)->map(fn ($address) => $address->address)->all();
+
+            return $ccEmails === ['contabilidad@example.test', 'socio@example.test'];
+        });
+    }
+
+    public function test_annex_email_rejects_more_than_five_cc_recipients(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $this
+            ->withToken('secret')
+            ->postJson('/api/v1/annex/7/email', [
+                'recipient' => ['email' => 'contador@example.test'],
+                'book' => 'ventas_contribuyente',
+                'filename' => 'anexo_ventas_contribuyente.csv',
+                'content_base64' => base64_encode('fecha;total'),
+                'cc' => ['a@example.test', 'b@example.test', 'c@example.test', 'd@example.test', 'e@example.test', 'f@example.test'],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('cc');
+    }
+
     private function createActiveMailTransport(): NotificationMailTransport
     {
         return NotificationMailTransport::query()->create([

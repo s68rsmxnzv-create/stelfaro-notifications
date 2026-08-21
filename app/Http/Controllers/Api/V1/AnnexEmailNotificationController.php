@@ -26,6 +26,8 @@ class AnnexEmailNotificationController extends Controller
             'requested_by' => ['sometimes', 'nullable', 'string', 'max:120'],
             'filename' => ['required', 'string', 'max:255'],
             'content_base64' => ['required', 'string'],
+            'cc' => ['sometimes', 'nullable', 'array', 'max:5'],
+            'cc.*' => ['email:rfc', 'max:255'],
         ]);
 
         $message = $messages->queueAnnexEmail($empresa, $validated);

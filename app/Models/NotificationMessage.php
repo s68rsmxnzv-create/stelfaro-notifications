@@ -28,6 +28,8 @@ class NotificationMessage extends Model
         'metadata',
         'sensitive_metadata',
         'sent_at',
+        'opened_at',
+        'open_count',
     ];
 
     protected function casts(): array
@@ -39,6 +41,8 @@ class NotificationMessage extends Model
             'metadata' => 'array',
             'sensitive_metadata' => 'encrypted:array',
             'sent_at' => 'datetime',
+            'opened_at' => 'datetime',
+            'open_count' => 'integer',
         ];
     }
 
