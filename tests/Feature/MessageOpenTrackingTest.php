@@ -11,6 +11,13 @@ class MessageOpenTrackingTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['notifications.tracking.public_base_url' => 'http://localhost']);
+    }
+
     public function test_loading_the_pixel_records_the_first_open_and_increments_open_count(): void
     {
         $message = $this->annexMessage();
