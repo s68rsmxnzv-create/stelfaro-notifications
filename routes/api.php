@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AnnexEmailNotificationController;
 use App\Http\Controllers\Api\V1\DteEmailNotificationController;
 use App\Http\Controllers\Api\V1\MhFiscalEventEmailNotificationController;
 use App\Http\Controllers\Api\V1\NotificationActivityController;
@@ -37,6 +38,7 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('internal.client:dte-core')->group(function (): void {
             Route::post('dte/{document}/email', DteEmailNotificationController::class);
             Route::post('mh-events/{event}/email', MhFiscalEventEmailNotificationController::class);
+            Route::post('annex/{empresa}/email', AnnexEmailNotificationController::class);
         });
     });
 });
