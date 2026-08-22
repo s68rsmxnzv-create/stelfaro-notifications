@@ -11,7 +11,6 @@ use App\Services\SenderAliasResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AnnexEmailNotificationTest extends TestCase
@@ -36,18 +35,24 @@ class AnnexEmailNotificationTest extends TestCase
                 'subject' => 'Anexos de ventas julio 2026',
                 'from' => '2026-07-01',
                 'to' => '2026-07-31',
-                'attachments' => [
+                'links' => [
                     [
                         'book' => 'ventas_contribuyente',
                         'book_label' => 'Ventas a contribuyentes',
-                        'filename' => 'anexo_ventas_contribuyente.csv',
-                        'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                        'kind' => 'csv',
+                        'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-annex/sales_annex/ventas_contribuyente/abc',
+                    ],
+                    [
+                        'book' => 'ventas_contribuyente',
+                        'book_label' => 'Ventas a contribuyentes',
+                        'kind' => 'zip',
+                        'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc',
                     ],
                     [
                         'book' => 'documentos_invalidados',
                         'book_label' => 'Documentos invalidados',
-                        'filename' => 'anexo_documentos_invalidados.csv',
-                        'content_base64' => base64_encode("fecha;total\n05/07/2026;50.00"),
+                        'kind' => 'csv',
+                        'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-annex/invalidated_annex/documentos_invalidados/abc',
                     ],
                 ],
             ]);
@@ -64,27 +69,13 @@ class AnnexEmailNotificationTest extends TestCase
             ['ventas_contribuyente', 'documentos_invalidados'],
             collect($message->metadata['books'])->pluck('book')->all()
         );
-        $this->assertDatabaseHas('notification_attachments', [
-            'notification_message_id' => $message->id,
-            'type' => 'csv',
-            'filename' => 'anexo_ventas_contribuyente.csv',
-        ]);
-        $this->assertDatabaseHas('notification_attachments', [
-            'notification_message_id' => $message->id,
-            'type' => 'csv',
-            'filename' => 'anexo_documentos_invalidados.csv',
-        ]);
+        $this->assertCount(3, $message->metadata['links']);
         Queue::assertPushed(SendAnnexEmailJob::class, fn (SendAnnexEmailJob $job): bool => $job->messageId === $message->id);
     }
 
-    public function test_send_annex_email_job_sends_mail_with_all_csv_attachments(): void
+    public function test_send_annex_email_job_sends_mail_with_csv_and_zip_buttons_and_no_attachments(): void
     {
         Mail::fake();
-        Storage::fake('local');
-        config([
-            'notifications.attachments.disk' => 'local',
-            'notifications.attachments.path' => 'notifications',
-        ]);
         $this->createActiveMailTransport();
 
         config(['notifications.internal_tokens' => [[
@@ -96,18 +87,18 @@ class AnnexEmailNotificationTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/annex/7/email', [
                 'recipient' => ['email' => 'contador@example.test'],
-                'attachments' => [
+                'links' => [
                     [
                         'book' => 'ventas_contribuyente',
                         'book_label' => 'Ventas a contribuyentes',
-                        'filename' => 'anexo_ventas_contribuyente.csv',
-                        'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                        'kind' => 'csv',
+                        'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-annex/sales_annex/ventas_contribuyente/abc',
                     ],
                     [
-                        'book' => 'ventas_consumidor_final',
-                        'book_label' => 'Ventas a consumidor final',
-                        'filename' => 'anexo_ventas_consumidor_final.csv',
-                        'content_base64' => base64_encode("fecha;total\n04/07/2026;25.00"),
+                        'book' => 'ventas_contribuyente',
+                        'book_label' => 'Ventas a contribuyentes',
+                        'kind' => 'zip',
+                        'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc',
                     ],
                 ],
             ])
@@ -124,20 +115,19 @@ class AnnexEmailNotificationTest extends TestCase
 
         $this->assertSame('sent', $message->status);
         $this->assertNotNull($message->sent_at);
-        Storage::disk('local')->assertExists("notifications/{$message->id}/anexo_ventas_contribuyente.csv");
-        Storage::disk('local')->assertExists("notifications/{$message->id}/anexo_ventas_consumidor_final.csv");
-        Mail::assertSent(AnnexSharedMail::class, fn (AnnexSharedMail $mail): bool => $mail->message->id === $message->id
-            && count($mail->attachments()) === 2);
+
+        Mail::assertSent(AnnexSharedMail::class, function (AnnexSharedMail $mail): bool {
+            $html = $mail->render();
+
+            return count($mail->attachments()) === 0
+                && str_contains($html, 'https://dev.stelfaro.com/core-api/v1/dte/shared-annex/sales_annex/ventas_contribuyente/abc')
+                && str_contains($html, 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc');
+        });
     }
 
     public function test_send_annex_email_job_sends_copy_to_cc_recipients(): void
     {
         Mail::fake();
-        Storage::fake('local');
-        config([
-            'notifications.attachments.disk' => 'local',
-            'notifications.attachments.path' => 'notifications',
-        ]);
         $this->createActiveMailTransport();
 
         config(['notifications.internal_tokens' => [[
@@ -149,10 +139,11 @@ class AnnexEmailNotificationTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/annex/7/email', [
                 'recipient' => ['email' => 'contador@example.test'],
-                'attachments' => [[
+                'links' => [[
                     'book' => 'ventas_contribuyente',
-                    'filename' => 'anexo_ventas_contribuyente.csv',
-                    'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                    'book_label' => 'Ventas a contribuyentes',
+                    'kind' => 'csv',
+                    'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-annex/sales_annex/ventas_contribuyente/abc',
                 ]],
                 'cc' => ['contabilidad@example.test', 'socio@example.test'],
             ])
@@ -173,57 +164,6 @@ class AnnexEmailNotificationTest extends TestCase
         });
     }
 
-    public function test_annex_email_stores_and_renders_zip_download_links(): void
-    {
-        Mail::fake();
-        Storage::fake('local');
-        config([
-            'notifications.attachments.disk' => 'local',
-            'notifications.attachments.path' => 'notifications',
-        ]);
-        $this->createActiveMailTransport();
-
-        config(['notifications.internal_tokens' => [[
-            'client' => 'dte-core',
-            'token_hash' => hash('sha256', 'secret'),
-        ]]]);
-
-        $this
-            ->withToken('secret')
-            ->postJson('/api/v1/annex/7/email', [
-                'recipient' => ['email' => 'contador@example.test'],
-                'attachments' => [[
-                    'book' => 'ventas_contribuyente',
-                    'book_label' => 'Ventas a contribuyentes',
-                    'filename' => 'anexo_ventas_contribuyente.csv',
-                    'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
-                ]],
-                'download_links' => [[
-                    'book' => 'ventas_contribuyente',
-                    'book_label' => 'Ventas a contribuyentes',
-                    'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc123',
-                ]],
-            ])
-            ->assertAccepted();
-
-        $message = NotificationMessage::query()->firstOrFail();
-        $this->assertSame(
-            'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc123',
-            $message->metadata['download_links'][0]['url']
-        );
-
-        (new SendAnnexEmailJob($message->id))->handle(
-            app(SenderAliasResolver::class),
-            app(MailTransportConfigurator::class),
-        );
-
-        Mail::assertSent(AnnexSharedMail::class, function (AnnexSharedMail $mail): bool {
-            $html = $mail->render();
-
-            return str_contains($html, 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc123');
-        });
-    }
-
     public function test_annex_email_rejects_more_than_five_cc_recipients(): void
     {
         config(['notifications.internal_tokens' => [[
@@ -235,15 +175,32 @@ class AnnexEmailNotificationTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/annex/7/email', [
                 'recipient' => ['email' => 'contador@example.test'],
-                'attachments' => [[
+                'links' => [[
                     'book' => 'ventas_contribuyente',
-                    'filename' => 'anexo_ventas_contribuyente.csv',
-                    'content_base64' => base64_encode('fecha;total'),
+                    'book_label' => 'Ventas a contribuyentes',
+                    'kind' => 'csv',
+                    'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-annex/sales_annex/ventas_contribuyente/abc',
                 ]],
                 'cc' => ['a@example.test', 'b@example.test', 'c@example.test', 'd@example.test', 'e@example.test', 'f@example.test'],
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('cc');
+    }
+
+    public function test_annex_email_rejects_request_without_links(): void
+    {
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $this
+            ->withToken('secret')
+            ->postJson('/api/v1/annex/7/email', [
+                'recipient' => ['email' => 'contador@example.test'],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('links');
     }
 
     private function createActiveMailTransport(): NotificationMailTransport

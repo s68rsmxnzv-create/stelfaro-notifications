@@ -6,7 +6,6 @@ use App\Jobs\SendAnnexEmailJob;
 use App\Jobs\SendDteEmailJob;
 use App\Models\NotificationMessage;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class NotificationMessageService
 {
@@ -24,67 +23,39 @@ class NotificationMessageService
     public function queueAnnexEmail(int $empresaId, array $data): NotificationMessage
     {
         $recipient = $data['recipient'];
-        $attachmentsInput = $data['attachments'];
+        $links = $data['links'];
 
-        $decoded = array_map(function (array $attachment): array {
-            $content = base64_decode((string) $attachment['content_base64'], true);
-            abort_if($content === false, 422, 'El contenido de un anexo no es válido.');
+        $books = collect($links)
+            ->unique(fn (array $link): string => $link['book'])
+            ->map(fn (array $link): array => [
+                'book' => $link['book'],
+                'book_label' => $link['book_label'] ?? null,
+            ])
+            ->values()
+            ->all();
 
-            return [
-                'book' => $attachment['book'],
-                'book_label' => $attachment['book_label'] ?? null,
-                'filename' => (string) $attachment['filename'],
-                'content' => $content,
-            ];
-        }, $attachmentsInput);
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'annex',
+            'source_id' => $empresaId,
+            'empresa_id' => $empresaId,
+            'recipient_email' => $recipient['email'],
+            'recipient_name' => $recipient['name'] ?? null,
+            'subject' => $data['subject'] ?? null,
+            'purpose' => 'annex_delivery',
+            'status' => 'pending',
+            'metadata' => [
+                'books' => $books,
+                'links' => array_values($links),
+                'from' => $data['from'] ?? null,
+                'to' => $data['to'] ?? null,
+                'empresa_nombre' => $data['empresa_nombre'] ?? null,
+                'empresa_nombre_comercial' => $data['empresa_nombre_comercial'] ?? null,
+                'requested_by' => $data['requested_by'] ?? null,
+                'cc' => array_values($data['cc'] ?? []),
+            ],
+        ]);
 
-        $message = DB::transaction(function () use ($empresaId, $data, $recipient, $decoded): NotificationMessage {
-            $message = NotificationMessage::query()->create([
-                'source_type' => 'annex',
-                'source_id' => $empresaId,
-                'empresa_id' => $empresaId,
-                'recipient_email' => $recipient['email'],
-                'recipient_name' => $recipient['name'] ?? null,
-                'subject' => $data['subject'] ?? null,
-                'purpose' => 'annex_delivery',
-                'status' => 'pending',
-                'metadata' => [
-                    'books' => array_map(fn (array $attachment): array => [
-                        'book' => $attachment['book'],
-                        'book_label' => $attachment['book_label'],
-                    ], $decoded),
-                    'from' => $data['from'] ?? null,
-                    'to' => $data['to'] ?? null,
-                    'empresa_nombre' => $data['empresa_nombre'] ?? null,
-                    'empresa_nombre_comercial' => $data['empresa_nombre_comercial'] ?? null,
-                    'requested_by' => $data['requested_by'] ?? null,
-                    'cc' => array_values($data['cc'] ?? []),
-                    'download_links' => array_values($data['download_links'] ?? []),
-                ],
-            ]);
-
-            $message->recordEvent('queued', ['source' => 'api', 'empresa_id' => $empresaId]);
-
-            $disk = (string) config('notifications.attachments.disk', 'local');
-            $basePath = trim((string) config('notifications.attachments.path', 'notifications'), '/');
-
-            foreach ($decoded as $attachment) {
-                $path = "{$basePath}/{$message->id}/{$attachment['filename']}";
-
-                Storage::disk($disk)->put($path, $attachment['content']);
-
-                $message->attachments()->create([
-                    'type' => 'csv',
-                    'filename' => $attachment['filename'],
-                    'mime' => 'text/csv; charset=Windows-1252',
-                    'content_hash' => hash('sha256', $attachment['content']),
-                    'disk' => $disk,
-                    'storage_path' => $path,
-                ]);
-            }
-
-            return $message;
-        });
+        $message->recordEvent('queued', ['source' => 'api', 'empresa_id' => $empresaId]);
 
         SendAnnexEmailJob::dispatch($message->id);
 

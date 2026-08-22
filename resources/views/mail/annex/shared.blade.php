@@ -7,17 +7,17 @@
 </head>
 <body style="margin: 0; padding: 0; background: #0f172a; color: #e5efff; font-family: Arial, Helvetica, sans-serif;">
     @php
-        $bookLabels = collect(data_get($metadata, 'books', []))
-            ->map(fn ($book) => $book['book_label'] ?? $book['book'] ?? null)
-            ->filter()
-            ->values();
+        $books = collect(data_get($metadata, 'books', []));
+        $bookLabels = $books->map(fn ($book) => $book['book_label'] ?? $book['book'] ?? null)->filter()->values();
         $bookSuffix = $bookLabels->isNotEmpty() ? ' ('.$bookLabels->implode(', ').')' : '';
         $empresaNombre = data_get($metadata, 'empresa_nombre_comercial') ?? data_get($metadata, 'empresa_nombre');
         $from = data_get($metadata, 'from');
         $to = data_get($metadata, 'to');
-        $downloadLinks = collect(data_get($metadata, 'download_links', []))
+        $linksByBook = collect(data_get($metadata, 'links', []))
             ->filter(fn ($link) => !empty($link['url']))
-            ->values();
+            ->groupBy('book');
+        $kindLabels = ['csv' => 'Descargar CSV', 'zip' => 'Descargar ZIP'];
+        $kindColors = ['csv' => '#0f766e', 'zip' => '#2563eb'];
     @endphp
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #0f172a; margin: 0; padding: 0;">
@@ -35,32 +35,32 @@
                                 @endif
                             </p>
                             @if ($from || $to)
-                                <p style="margin: 0 0 12px; font-size: 14px; color: #cbd5f5;">
+                                <p style="margin: 0 0 16px; font-size: 14px; color: #cbd5f5;">
                                     Periodo: {{ $from ?: '—' }} al {{ $to ?: '—' }}
                                 </p>
                             @endif
-                            @if ($bookLabels->isNotEmpty())
-                                <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 14px; line-height: 1.6; color: #cbd5f5;">
-                                    @foreach ($bookLabels as $label)
-                                        <li>{{ $label }}</li>
-                                    @endforeach
-                                </ul>
-                            @endif
-                            @if ($downloadLinks->isNotEmpty())
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 20px;">
-                                    <tr>
-                                        @foreach ($downloadLinks as $link)
-                                            <td style="padding: 0 8px 8px 0;">
-                                                <a href="{{ $link['url'] }}" style="display: inline-block; padding: 10px 18px; background: #2563eb; color: #ffffff; font-size: 13px; font-weight: bold; text-decoration: none; border-radius: 6px;">
-                                                    Descargar ZIP{{ !empty($link['book_label']) ? ' — '.$link['book_label'] : '' }}
-                                                </a>
+                            @if ($books->isNotEmpty())
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 20px;">
+                                    @foreach ($books as $book)
+                                        <tr>
+                                            <td style="padding: 0 0 12px; border-bottom: 1px solid #1e3a5f;">
+                                                <p style="margin: 0 0 8px; font-size: 14px; font-weight: bold; color: #e5efff;">
+                                                    {{ $book['book_label'] ?? $book['book'] }}
+                                                </p>
+                                                <div style="margin: 0 0 12px;">
+                                                    @foreach ($linksByBook->get($book['book'], collect()) as $link)
+                                                        <a href="{{ $link['url'] }}" style="display: inline-block; margin: 0 8px 8px 0; padding: 9px 16px; background: {{ $kindColors[$link['kind']] ?? '#2563eb' }}; color: #ffffff; font-size: 13px; font-weight: bold; text-decoration: none; border-radius: 6px;">
+                                                            {{ $kindLabels[$link['kind']] ?? 'Descargar' }}
+                                                        </a>
+                                                    @endforeach
+                                                </div>
                                             </td>
-                                        @endforeach
-                                    </tr>
+                                        </tr>
+                                    @endforeach
                                 </table>
                             @endif
                             <p style="margin: 0; font-size: 13px; color: #94a3b8;">
-                                Adjuntamos un archivo CSV por cada anexo. Este correo fue generado automáticamente; por favor no respondas a este mensaje.
+                                Los enlaces vencen en 7 dias. Este correo fue generado automáticamente; por favor no respondas a este mensaje.
                             </p>
                         </td>
                     </tr>

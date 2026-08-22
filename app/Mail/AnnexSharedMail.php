@@ -2,7 +2,6 @@
 
 namespace App\Mail;
 
-use App\Models\NotificationAttachment;
 use App\Models\NotificationMessage;
 use App\Support\MessageOpenTrackingToken;
 use Illuminate\Bus\Queueable;
@@ -47,22 +46,19 @@ class AnnexSharedMail extends Mailable
      */
     public function attachments(): array
     {
-        return $this->message->attachments
-            ->map(fn (NotificationAttachment $attachment): Attachment => Attachment::fromStorageDisk(
-                $attachment->disk ?: config('notifications.attachments.disk', 'local'),
-                (string) $attachment->storage_path,
-            )->as($attachment->filename)->withMime($attachment->mime ?: 'text/csv'))
-            ->values()
-            ->all();
+        return [];
     }
 
     private function defaultSubject(): string
     {
-        $bookLabel = $this->message->metadata['book_label'] ?? $this->message->metadata['book'] ?? null;
+        $labels = collect($this->message->metadata['books'] ?? [])
+            ->map(fn (array $book): ?string => $book['book_label'] ?? $book['book'] ?? null)
+            ->filter()
+            ->values();
 
-        return $bookLabel
-            ? "Anexo fiscal compartido: {$bookLabel}"
-            : 'Anexo fiscal compartido';
+        return $labels->isNotEmpty()
+            ? 'Anexos fiscales compartidos: '.$labels->implode(', ')
+            : 'Anexos fiscales compartidos';
     }
 
     private function fromAddress(): ?Address

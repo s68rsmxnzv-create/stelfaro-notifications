@@ -22,17 +22,13 @@ class AnnexEmailNotificationController extends Controller
             'empresa_nombre' => ['sometimes', 'nullable', 'string', 'max:255'],
             'empresa_nombre_comercial' => ['sometimes', 'nullable', 'string', 'max:255'],
             'requested_by' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'attachments' => ['required', 'array', 'min:1'],
-            'attachments.*.book' => ['required', 'string', 'max:80'],
-            'attachments.*.book_label' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'attachments.*.filename' => ['required', 'string', 'max:255'],
-            'attachments.*.content_base64' => ['required', 'string'],
+            'links' => ['required', 'array', 'min:1'],
+            'links.*.book' => ['required', 'string', 'max:80'],
+            'links.*.book_label' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'links.*.kind' => ['required', 'string', 'in:csv,zip'],
+            'links.*.url' => ['required', 'url', 'max:2048'],
             'cc' => ['sometimes', 'nullable', 'array', 'max:5'],
             'cc.*' => ['email:rfc', 'max:255'],
-            'download_links' => ['sometimes', 'nullable', 'array'],
-            'download_links.*.book' => ['required', 'string', 'max:80'],
-            'download_links.*.book_label' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'download_links.*.url' => ['required', 'url', 'max:2048'],
         ]);
 
         $message = $messages->queueAnnexEmail($empresa, $validated);
