@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AnnexEmailNotificationController;
 use App\Http\Controllers\Api\V1\DteEmailNotificationController;
+use App\Http\Controllers\MessageOpenTrackingController;
 use App\Http\Controllers\Api\V1\MhFiscalEventEmailNotificationController;
 use App\Http\Controllers\Api\V1\NotificationActivityController;
 use App\Http\Controllers\Api\V1\NotificationMailTransportController;
@@ -17,6 +18,10 @@ Route::prefix('v1')->group(function (): void {
         'service' => config('app.name', 'Stelfaro Notifications'),
         'timestamp' => now()->toISOString(),
     ]));
+
+    Route::get('t/{token}.png', [MessageOpenTrackingController::class, 'pixel'])
+        ->where('token', '[A-Za-z0-9_-]+\.[a-f0-9]{64}')
+        ->middleware('throttle:120,1');
 
     Route::middleware('internal.token')->group(function (): void {
         Route::get('sender-aliases', [NotificationSenderAliasController::class, 'index']);

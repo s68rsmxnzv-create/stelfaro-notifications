@@ -15,7 +15,7 @@ class MessageOpenTrackingTest extends TestCase
     {
         parent::setUp();
 
-        config(['notifications.tracking.public_base_url' => 'http://localhost']);
+        config(['notifications.tracking.public_base_url' => 'http://localhost/api']);
     }
 
     public function test_loading_the_pixel_records_the_first_open_and_increments_open_count(): void
@@ -23,6 +23,8 @@ class MessageOpenTrackingTest extends TestCase
         $message = $this->annexMessage();
         $url = app(MessageOpenTrackingToken::class)->url($message);
         $path = parse_url($url, PHP_URL_PATH);
+
+        $this->assertStringStartsWith('/api/v1/t/', $path);
 
         $response = $this->get($path);
 

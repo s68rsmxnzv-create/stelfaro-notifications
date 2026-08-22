@@ -11,7 +11,7 @@ class MessageOpenTrackingToken
     {
         $base = rtrim((string) config('notifications.tracking.public_base_url'), '/');
 
-        return $base.'/t/'.$this->token($message->id).'.png';
+        return $base.'/v1/t/'.$this->token($message->id).'.png';
     }
 
     public function resolve(string $token): ?int
