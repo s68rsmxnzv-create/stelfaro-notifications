@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendAnnexEmailJob;
 use App\Jobs\SendDteEmailJob;
 use App\Models\NotificationMessage;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,51 @@ class NotificationMessageService
     public function queueDteEmail(int $documentId, array $data): NotificationMessage
     {
         return $this->queueEmail('dte', $documentId, $data, 'document_id');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function queueAnnexEmail(int $empresaId, array $data): NotificationMessage
+    {
+        $recipient = $data['recipient'];
+        $links = $data['links'];
+
+        $books = collect($links)
+            ->unique(fn (array $link): string => $link['book'])
+            ->map(fn (array $link): array => [
+                'book' => $link['book'],
+                'book_label' => $link['book_label'] ?? null,
+            ])
+            ->values()
+            ->all();
+
+        $message = NotificationMessage::query()->create([
+            'source_type' => 'annex',
+            'source_id' => $empresaId,
+            'empresa_id' => $empresaId,
+            'recipient_email' => $recipient['email'],
+            'recipient_name' => $recipient['name'] ?? null,
+            'subject' => $data['subject'] ?? null,
+            'purpose' => 'annex_delivery',
+            'status' => 'pending',
+            'metadata' => [
+                'books' => $books,
+                'links' => array_values($links),
+                'from' => $data['from'] ?? null,
+                'to' => $data['to'] ?? null,
+                'empresa_nombre' => $data['empresa_nombre'] ?? null,
+                'empresa_nombre_comercial' => $data['empresa_nombre_comercial'] ?? null,
+                'requested_by' => $data['requested_by'] ?? null,
+                'cc' => array_values($data['cc'] ?? []),
+            ],
+        ]);
+
+        $message->recordEvent('queued', ['source' => 'api', 'empresa_id' => $empresaId]);
+
+        SendAnnexEmailJob::dispatch($message->id);
+
+        return $message;
     }
 
     /**

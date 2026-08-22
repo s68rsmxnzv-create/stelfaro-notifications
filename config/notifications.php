@@ -40,4 +40,9 @@ return [
     'marketing' => [
         'whatsapp_url' => env('STELFARO_WHATSAPP_URL', 'https://wa.me/50375640652'),
     ],
+
+    'tracking' => [
+        'pixel_key' => env('NOTIFICATIONS_TRACKING_PIXEL_KEY') ?: env('APP_KEY'),
+        'public_base_url' => env('NOTIFICATIONS_PUBLIC_BASE_URL') ?: env('APP_URL', 'http://localhost'),
+    ],
 ];
