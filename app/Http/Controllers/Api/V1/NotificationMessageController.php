@@ -29,6 +29,24 @@ class NotificationMessageController extends Controller
         ]);
     }
 
+    public function purposes(): JsonResponse
+    {
+        $rows = NotificationMessage::query()
+            ->selectRaw('purpose, source_type, COUNT(*) as message_count, MAX(created_at) as last_used_at')
+            ->groupBy('purpose', 'source_type')
+            ->orderByDesc('last_used_at')
+            ->get();
+
+        return response()->json([
+            'data' => $rows->map(fn ($row): array => [
+                'purpose' => $row->purpose,
+                'source_type' => $row->source_type,
+                'message_count' => (int) $row->message_count,
+                'last_used_at' => $row->last_used_at,
+            ])->values(),
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $client = $request->attributes->get('internal_api_client');

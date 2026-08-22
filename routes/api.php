@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('activities', [NotificationActivityController::class, 'store']);
         Route::post('activities/{activity}/actions', [NotificationActivityController::class, 'storeAction']);
         Route::patch('actions/{action}', [NotificationActivityController::class, 'updateAction']);
+        Route::get('messages/purposes', [NotificationMessageController::class, 'purposes']);
         Route::get('messages', [NotificationMessageController::class, 'index']);
         Route::get('messages/{message}', [NotificationMessageController::class, 'show']);
 
