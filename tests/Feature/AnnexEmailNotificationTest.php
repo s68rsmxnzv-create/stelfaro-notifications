@@ -33,13 +33,23 @@ class AnnexEmailNotificationTest extends TestCase
                     'name' => 'Contador Externo',
                     'email' => 'contador@example.test',
                 ],
-                'subject' => 'Anexo de ventas julio 2026',
-                'book' => 'ventas_contribuyente',
-                'book_label' => 'Ventas a contribuyentes',
+                'subject' => 'Anexos de ventas julio 2026',
                 'from' => '2026-07-01',
                 'to' => '2026-07-31',
-                'filename' => 'anexo_ventas_contribuyente.csv',
-                'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                'attachments' => [
+                    [
+                        'book' => 'ventas_contribuyente',
+                        'book_label' => 'Ventas a contribuyentes',
+                        'filename' => 'anexo_ventas_contribuyente.csv',
+                        'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                    ],
+                    [
+                        'book' => 'documentos_invalidados',
+                        'book_label' => 'Documentos invalidados',
+                        'filename' => 'anexo_documentos_invalidados.csv',
+                        'content_base64' => base64_encode("fecha;total\n05/07/2026;50.00"),
+                    ],
+                ],
             ]);
 
         $response->assertAccepted()
@@ -50,16 +60,24 @@ class AnnexEmailNotificationTest extends TestCase
 
         $message = NotificationMessage::query()->firstOrFail();
 
-        $this->assertSame('ventas_contribuyente', $message->metadata['book']);
+        $this->assertSame(
+            ['ventas_contribuyente', 'documentos_invalidados'],
+            collect($message->metadata['books'])->pluck('book')->all()
+        );
         $this->assertDatabaseHas('notification_attachments', [
             'notification_message_id' => $message->id,
             'type' => 'csv',
             'filename' => 'anexo_ventas_contribuyente.csv',
         ]);
+        $this->assertDatabaseHas('notification_attachments', [
+            'notification_message_id' => $message->id,
+            'type' => 'csv',
+            'filename' => 'anexo_documentos_invalidados.csv',
+        ]);
         Queue::assertPushed(SendAnnexEmailJob::class, fn (SendAnnexEmailJob $job): bool => $job->messageId === $message->id);
     }
 
-    public function test_send_annex_email_job_sends_mail_with_csv_attachment(): void
+    public function test_send_annex_email_job_sends_mail_with_all_csv_attachments(): void
     {
         Mail::fake();
         Storage::fake('local');
@@ -78,10 +96,20 @@ class AnnexEmailNotificationTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/annex/7/email', [
                 'recipient' => ['email' => 'contador@example.test'],
-                'book' => 'ventas_contribuyente',
-                'book_label' => 'Ventas a contribuyentes',
-                'filename' => 'anexo_ventas_contribuyente.csv',
-                'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                'attachments' => [
+                    [
+                        'book' => 'ventas_contribuyente',
+                        'book_label' => 'Ventas a contribuyentes',
+                        'filename' => 'anexo_ventas_contribuyente.csv',
+                        'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                    ],
+                    [
+                        'book' => 'ventas_consumidor_final',
+                        'book_label' => 'Ventas a consumidor final',
+                        'filename' => 'anexo_ventas_consumidor_final.csv',
+                        'content_base64' => base64_encode("fecha;total\n04/07/2026;25.00"),
+                    ],
+                ],
             ])
             ->assertAccepted();
 
@@ -97,7 +125,9 @@ class AnnexEmailNotificationTest extends TestCase
         $this->assertSame('sent', $message->status);
         $this->assertNotNull($message->sent_at);
         Storage::disk('local')->assertExists("notifications/{$message->id}/anexo_ventas_contribuyente.csv");
-        Mail::assertSent(AnnexSharedMail::class, fn (AnnexSharedMail $mail): bool => $mail->message->id === $message->id);
+        Storage::disk('local')->assertExists("notifications/{$message->id}/anexo_ventas_consumidor_final.csv");
+        Mail::assertSent(AnnexSharedMail::class, fn (AnnexSharedMail $mail): bool => $mail->message->id === $message->id
+            && count($mail->attachments()) === 2);
     }
 
     public function test_send_annex_email_job_sends_copy_to_cc_recipients(): void
@@ -119,9 +149,11 @@ class AnnexEmailNotificationTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/annex/7/email', [
                 'recipient' => ['email' => 'contador@example.test'],
-                'book' => 'ventas_contribuyente',
-                'filename' => 'anexo_ventas_contribuyente.csv',
-                'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                'attachments' => [[
+                    'book' => 'ventas_contribuyente',
+                    'filename' => 'anexo_ventas_contribuyente.csv',
+                    'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                ]],
                 'cc' => ['contabilidad@example.test', 'socio@example.test'],
             ])
             ->assertAccepted();
@@ -141,6 +173,57 @@ class AnnexEmailNotificationTest extends TestCase
         });
     }
 
+    public function test_annex_email_stores_and_renders_zip_download_links(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        config([
+            'notifications.attachments.disk' => 'local',
+            'notifications.attachments.path' => 'notifications',
+        ]);
+        $this->createActiveMailTransport();
+
+        config(['notifications.internal_tokens' => [[
+            'client' => 'dte-core',
+            'token_hash' => hash('sha256', 'secret'),
+        ]]]);
+
+        $this
+            ->withToken('secret')
+            ->postJson('/api/v1/annex/7/email', [
+                'recipient' => ['email' => 'contador@example.test'],
+                'attachments' => [[
+                    'book' => 'ventas_contribuyente',
+                    'book_label' => 'Ventas a contribuyentes',
+                    'filename' => 'anexo_ventas_contribuyente.csv',
+                    'content_base64' => base64_encode("fecha;total\n03/07/2026;113.00"),
+                ]],
+                'download_links' => [[
+                    'book' => 'ventas_contribuyente',
+                    'book_label' => 'Ventas a contribuyentes',
+                    'url' => 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc123',
+                ]],
+            ])
+            ->assertAccepted();
+
+        $message = NotificationMessage::query()->firstOrFail();
+        $this->assertSame(
+            'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc123',
+            $message->metadata['download_links'][0]['url']
+        );
+
+        (new SendAnnexEmailJob($message->id))->handle(
+            app(SenderAliasResolver::class),
+            app(MailTransportConfigurator::class),
+        );
+
+        Mail::assertSent(AnnexSharedMail::class, function (AnnexSharedMail $mail): bool {
+            $html = $mail->render();
+
+            return str_contains($html, 'https://dev.stelfaro.com/core-api/v1/dte/shared-zip-annex/ventas_contribuyente/abc123');
+        });
+    }
+
     public function test_annex_email_rejects_more_than_five_cc_recipients(): void
     {
         config(['notifications.internal_tokens' => [[
@@ -152,9 +235,11 @@ class AnnexEmailNotificationTest extends TestCase
             ->withToken('secret')
             ->postJson('/api/v1/annex/7/email', [
                 'recipient' => ['email' => 'contador@example.test'],
-                'book' => 'ventas_contribuyente',
-                'filename' => 'anexo_ventas_contribuyente.csv',
-                'content_base64' => base64_encode('fecha;total'),
+                'attachments' => [[
+                    'book' => 'ventas_contribuyente',
+                    'filename' => 'anexo_ventas_contribuyente.csv',
+                    'content_base64' => base64_encode('fecha;total'),
+                ]],
                 'cc' => ['a@example.test', 'b@example.test', 'c@example.test', 'd@example.test', 'e@example.test', 'f@example.test'],
             ])
             ->assertUnprocessable()

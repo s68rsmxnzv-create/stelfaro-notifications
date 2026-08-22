@@ -24,10 +24,21 @@ class NotificationMessageService
     public function queueAnnexEmail(int $empresaId, array $data): NotificationMessage
     {
         $recipient = $data['recipient'];
-        $content = base64_decode((string) $data['content_base64'], true);
-        abort_if($content === false, 422, 'El contenido del anexo no es válido.');
+        $attachmentsInput = $data['attachments'];
 
-        $message = DB::transaction(function () use ($empresaId, $data, $recipient, $content): NotificationMessage {
+        $decoded = array_map(function (array $attachment): array {
+            $content = base64_decode((string) $attachment['content_base64'], true);
+            abort_if($content === false, 422, 'El contenido de un anexo no es válido.');
+
+            return [
+                'book' => $attachment['book'],
+                'book_label' => $attachment['book_label'] ?? null,
+                'filename' => (string) $attachment['filename'],
+                'content' => $content,
+            ];
+        }, $attachmentsInput);
+
+        $message = DB::transaction(function () use ($empresaId, $data, $recipient, $decoded): NotificationMessage {
             $message = NotificationMessage::query()->create([
                 'source_type' => 'annex',
                 'source_id' => $empresaId,
@@ -38,14 +49,17 @@ class NotificationMessageService
                 'purpose' => 'annex_delivery',
                 'status' => 'pending',
                 'metadata' => [
-                    'book' => $data['book'] ?? null,
-                    'book_label' => $data['book_label'] ?? null,
+                    'books' => array_map(fn (array $attachment): array => [
+                        'book' => $attachment['book'],
+                        'book_label' => $attachment['book_label'],
+                    ], $decoded),
                     'from' => $data['from'] ?? null,
                     'to' => $data['to'] ?? null,
                     'empresa_nombre' => $data['empresa_nombre'] ?? null,
                     'empresa_nombre_comercial' => $data['empresa_nombre_comercial'] ?? null,
                     'requested_by' => $data['requested_by'] ?? null,
                     'cc' => array_values($data['cc'] ?? []),
+                    'download_links' => array_values($data['download_links'] ?? []),
                 ],
             ]);
 
@@ -53,19 +67,21 @@ class NotificationMessageService
 
             $disk = (string) config('notifications.attachments.disk', 'local');
             $basePath = trim((string) config('notifications.attachments.path', 'notifications'), '/');
-            $filename = (string) $data['filename'];
-            $path = "{$basePath}/{$message->id}/{$filename}";
 
-            Storage::disk($disk)->put($path, $content);
+            foreach ($decoded as $attachment) {
+                $path = "{$basePath}/{$message->id}/{$attachment['filename']}";
 
-            $message->attachments()->create([
-                'type' => 'csv',
-                'filename' => $filename,
-                'mime' => 'text/csv; charset=Windows-1252',
-                'content_hash' => hash('sha256', $content),
-                'disk' => $disk,
-                'storage_path' => $path,
-            ]);
+                Storage::disk($disk)->put($path, $attachment['content']);
+
+                $message->attachments()->create([
+                    'type' => 'csv',
+                    'filename' => $attachment['filename'],
+                    'mime' => 'text/csv; charset=Windows-1252',
+                    'content_hash' => hash('sha256', $attachment['content']),
+                    'disk' => $disk,
+                    'storage_path' => $path,
+                ]);
+            }
 
             return $message;
         });
