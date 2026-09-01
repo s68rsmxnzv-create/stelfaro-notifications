@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\NotificationMailTransportController;
 use App\Http\Controllers\Api\V1\NotificationMessageController;
 use App\Http\Controllers\Api\V1\NotificationSenderAliasController;
 use App\Http\Controllers\Api\V1\PlatformInvitationEmailNotificationController;
+use App\Http\Controllers\Api\V1\PlatformPasswordResetEmailNotificationController;
 use App\Http\Controllers\Api\V1\PlatformTemporaryPasswordEmailNotificationController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('mail-transport', [NotificationMailTransportController::class, 'store']);
             Route::post('platform/invitations/email', PlatformInvitationEmailNotificationController::class);
             Route::post('platform/temporary-passwords/email', PlatformTemporaryPasswordEmailNotificationController::class);
+            Route::post('platform/password-reset/email', PlatformPasswordResetEmailNotificationController::class);
         });
 
         Route::middleware('internal.client:dte-core')->group(function (): void {
